@@ -1,4 +1,3 @@
-// Package aicontext provides functions to extract context from GitHub repositories, local directories, and YouTube videos
 package aicontext
 
 import (

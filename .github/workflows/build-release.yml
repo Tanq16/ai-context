@@ -45,7 +45,7 @@ jobs:
       - name: Create Release
         run: |
           gh release create "${{ steps.version.outputs.new_version }}" \
-            --title "AI Context - Latest Release" \
+            --title "AI Context - ${{ steps.version.outputs.new_version }}" \
             --draft \
             --notes "Release ${{ steps.version.outputs.new_version }}" \
             --target ${{ github.sha }}
