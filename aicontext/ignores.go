@@ -41,6 +41,8 @@ func (ip *IgnorePatterns) shouldIgnore(path string) bool {
 	return false
 }
 
+// Check if the content is binary
+// funny heuristic, but it works against a very limited sample set
 func isBinary(content []byte) bool {
 	nullCount := 0
 	nonPrintable := 0
