@@ -1,3 +1,4 @@
+// Package aicontext provides functions to extract context from GitHub repositories, local directories, and YouTube videos
 package aicontext
 
 import (
@@ -13,15 +14,18 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
+// TranscriptParams holds the parameters for the transcript request
 type TranscriptParams struct {
 	Params string `json:"params"`
 }
 
+// TranscriptSegment holds the transcript segment data
 type TranscriptSegment struct {
 	StartTime string `json:"startTime"`
 	Text      string `json:"text"`
 }
 
+// InnerTubeRequest holds the request data for the InnerTube API
 type InnerTubeRequest struct {
 	Context struct {
 		Client struct {
@@ -175,6 +179,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	return segments, nil
 }
 
+// makeInnerTubeRequest makes a request to the InnerTube API
 func makeInnerTubeRequest(endpoint string, reqBody interface{}, apiKey string) (map[string]interface{}, error) {
 	baseURL := "https://www.youtube.com/youtubei/v1"
 	jsonBody, err := json.Marshal(reqBody)
@@ -201,6 +206,7 @@ func makeInnerTubeRequest(endpoint string, reqBody interface{}, apiKey string) (
 	return result, nil
 }
 
+// extractInnertubeKey extracts the INNERTUBE_API_KEY from the video page
 func extractInnertubeKey(videoID string) (string, error) {
 	resp, err := http.Get("https://www.youtube.com/watch?v=" + videoID)
 	if err != nil {

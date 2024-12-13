@@ -12,12 +12,14 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
+// FileEntry holds the file path, content, and language
 type FileEntry struct {
 	Path     string
 	Content  string
 	Language string
 }
 
+// Output holds the output data
 type Output struct {
 	GenerationDate string
 	FileCount      int
@@ -26,11 +28,13 @@ type Output struct {
 	Files          []FileEntry
 }
 
+// ProcessorConfig holds the configuration for the processor
 type ProcessorConfig struct {
 	OutputPath        string
 	AdditionalIgnores []string
 }
 
+// Processor processes the source code context
 type Processor struct {
 	config         ProcessorConfig
 	ignorePatterns *IgnorePatterns
@@ -64,6 +68,7 @@ Generated on: {{.GenerationDate}}
 
 {{end}}`
 
+// NewProcessor creates a new Processor instance
 func NewProcessor(config ProcessorConfig) *Processor {
 	return &Processor{
 		config:         config,
@@ -71,6 +76,7 @@ func NewProcessor(config ProcessorConfig) *Processor {
 	}
 }
 
+// ProcessDirectory processes the directory
 func (p *Processor) ProcessDirectory(path string) error {
 	output, err := p.processDirectory(path)
 	if err != nil {
@@ -79,6 +85,7 @@ func (p *Processor) ProcessDirectory(path string) error {
 	return p.writeOutput(output)
 }
 
+// ProcessGitHubURL processes the GitHub URL
 func (p *Processor) ProcessGitHubURL(url string) error {
 	tempDir, err := os.MkdirTemp("", "aicontext-clone-")
 	if err != nil {
@@ -97,6 +104,7 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 	return p.ProcessDirectory(tempDir)
 }
 
+// processGitRepository processes the Git repository
 func (p *Processor) processDirectory(root string) (*Output, error) {
 	output := &Output{
 		GenerationDate: time.Now().Format(time.RFC3339),
@@ -146,6 +154,7 @@ func (p *Processor) processDirectory(root string) (*Output, error) {
 	return output, nil
 }
 
+// writeOutput writes the output to the file
 func (p *Processor) writeOutput(output *Output) error {
 	tmpl, err := template.New("markdown").Parse(markdownTemplate)
 	if err != nil {
@@ -163,6 +172,7 @@ func (p *Processor) writeOutput(output *Output) error {
 	return nil
 }
 
+// detectLanguage detects the language based on the file extension
 func detectLanguage(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
@@ -211,6 +221,7 @@ func detectLanguage(path string) string {
 	}
 }
 
+// generateDirectoryTree generates the directory tree
 func (p *Processor) generateDirectoryTree(root string) string {
 	var tree strings.Builder
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -245,6 +256,7 @@ func (p *Processor) generateDirectoryTree(root string) string {
 	return tree.String()
 }
 
+// helper function to find the minimum of two integers
 func min(a, b int) int {
 	if a < b {
 		return a
