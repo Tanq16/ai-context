@@ -139,6 +139,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		// Fall back to default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+		log.Debug().Msg("falling back to publicly known Web Client API key")
 	}
 	// Create InnerTube request for video data
 	nextReq := InnerTubeRequest{}
