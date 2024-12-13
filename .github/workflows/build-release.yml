@@ -1,0 +1,93 @@
+name: Release Build
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  process-commit:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: version
+        run: |
+          # Get the latest version tag, default to v0.1 if none exists
+          LATEST_TAG=$(gh release list -L 1 | cut -f 1 | sed 's/Release //' || echo "v0.0")
+          LATEST_TAG=${LATEST_TAG:-v0.0}
+          
+          # Extract current version numbers
+          MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | sed 's/v//')
+          MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+          
+          # Check commit message for version bump
+          if git log -1 --pretty=%B | grep -i "version bump"; then
+            NEW_VERSION="v$((MAJOR + 1)).0"
+          else
+            NEW_VERSION="v$MAJOR.$((MINOR + 1))"
+          fi
+          
+          echo "Previous version: $LATEST_TAG"
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create Release
+        run: |
+          gh release create "${{ steps.version.outputs.new_version }}" \
+            --title "AI Context - Latest Release" \
+            --draft \
+            --notes "Release ${{ steps.version.outputs.new_version }}" \
+            --target ${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build:
+    needs: process-commit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build Binary
+        run: |
+            GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o ai-context${{ matrix.os == 'windows' && '.exe' || '' }} .
+            zip -r ai-context-${{ matrix.os }}-${{ matrix.arch }}.zip ai-context${{ matrix.os == 'windows' && '.exe' || '' }} README.md LICENSE
+
+      - name: Upload Release Asset
+        run: |
+          gh release upload "${{ needs.process-commit.outputs.version }}" \
+            "ai-context-${{ matrix.os }}-${{ matrix.arch }}.zip" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: [process-commit, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish Release
+        run: |
+          gh release edit "${{ needs.process-commit.outputs.version }}" --draft=false
+        env:
+          GH_TOKEN: ${{ github.token }}
