@@ -37,6 +37,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		aicontext.Handler(cmdFlags.directory, cmdFlags.url, cmdFlags.listFile, cmdFlags.output, cmdFlags.ignoreList)
+		log.Info().Msg("All Operations Completed!")
 	},
 }
 
@@ -61,6 +62,7 @@ func init() {
 	log.Logger = zerolog.New(output).With().Timestamp().Logger()
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 
+	// TODO: Reduce to 3 flags: "input" "ignore" "list"
 	rootCmd.Flags().StringVarP(&cmdFlags.directory, "directory", "d", "", "Local directory to process")
 	rootCmd.Flags().StringVarP(&cmdFlags.url, "url", "u", "", "URL to process (GitHub, YouTube)")
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
