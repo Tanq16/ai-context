@@ -11,13 +11,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GoDoc](https://godoc.org/github.com/tanq16/ai-context?status.svg)](https://godoc.org/github.com/tanq16/ai-context)
 
-Generate AI-friendly markdown context files from repositories or videos or local source code.
+Generate AI-friendly markdown context files from repositories or videos or webpages or local source code.
 
 </div>
 
 ---
 
 A command-line tool designed to produce context files from various sources, to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy. It can process multiple sources to output the context in a markdown format optimized for use by AI models.
+
+`Quickstart` &rarr;
+
+```bash
+ai-context -u "https://github.com/tanq16/ai-context" # single URL
+ai-context -f urllist.file                           # URL file
+```
 
 ## Features
 
