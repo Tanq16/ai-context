@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -16,8 +14,14 @@ var cmdFlags struct {
 	directory  string
 	url        string
 	output     string
+	listFile   string
 	ignoreList []string
-	videoURL   string
+}
+
+var urlRegex = map[string]string{
+	"gh":     "https://github.com/.+/.+",
+	"yt":     "https://youtu.be/.+",
+	"ytfull": "https://www.youtube.com/watch\\?v=.+",
 }
 
 var rootCmd = &cobra.Command{
@@ -32,44 +36,7 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if cmdFlags.videoURL != "" {
-			segments, err := aicontext.DownloadTranscript(cmdFlags.videoURL)
-			if err != nil {
-				log.Fatal().Err(err).Msg("failed to get transcript")
-			}
-			var content strings.Builder
-			content.WriteString("# Video Transcript\n\n")
-			for _, segment := range segments {
-				content.WriteString(fmt.Sprintf("[%s] %s\n\n", segment.StartTime, segment.Text))
-			}
-			if err := os.WriteFile(cmdFlags.output, []byte(content.String()), 0644); err != nil {
-				log.Fatal().Err(err).Msg("failed to write transcript")
-			}
-			log.Info().Str("output", cmdFlags.output).Msg("successfully generated transcript")
-			return
-		}
-		if cmdFlags.directory == "" && cmdFlags.url == "" {
-			log.Fatal().Err(fmt.Errorf("either directory or url must be specified")).Msg("failed to process source")
-		}
-		if cmdFlags.directory != "" && cmdFlags.url != "" {
-			log.Fatal().Err(fmt.Errorf("cannot specify both directory and url")).Msg("failed to process source")
-		}
-		// Create the processor
-		processor := aicontext.NewProcessor(aicontext.ProcessorConfig{
-			OutputPath:        cmdFlags.output,
-			AdditionalIgnores: cmdFlags.ignoreList,
-		})
-		// Process based on input type
-		var err error
-		if cmdFlags.directory != "" {
-			err = processor.ProcessDirectory(cmdFlags.directory)
-		} else {
-			err = processor.ProcessGitHubURL(cmdFlags.url)
-		}
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to process source")
-		}
-		log.Info().Str("output", cmdFlags.output).Msg("successfully generated context")
+		aicontext.Handler(cmdFlags.directory, cmdFlags.url, cmdFlags.listFile, cmdFlags.output, cmdFlags.ignoreList)
 	},
 }
 
@@ -95,8 +62,8 @@ func init() {
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 
 	rootCmd.Flags().StringVarP(&cmdFlags.directory, "directory", "d", "", "Local directory to process")
-	rootCmd.Flags().StringVarP(&cmdFlags.url, "url", "u", "", "GitHub URL to process")
-	rootCmd.Flags().StringVarP(&cmdFlags.videoURL, "video", "v", "", "YouTube video URL to process")
+	rootCmd.Flags().StringVarP(&cmdFlags.url, "url", "u", "", "URL to process (GitHub, YouTube)")
+	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
 	rootCmd.Flags().StringVarP(&cmdFlags.output, "output", "o", "ai-context.md", "Output file path (default: ai-context.md)")
-	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs')")
+	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs'); helpful with GitHub or local directories")
 }
