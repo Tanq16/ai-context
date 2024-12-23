@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/logo.png" alt="AI Context Logo" width="200"/>
+<img src=".github/assets/logo.png" alt="AI Context Logo" width="225"/>
 
 <h1>AI Context</h1>
 
@@ -9,62 +9,83 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GoDoc](https://godoc.org/github.com/tanq16/ai-context?status.svg)](https://godoc.org/github.com/tanq16/ai-context)
 
-Generate AI-friendly context from repositories or videos.
+Generate AI-friendly markdown context files from repositories or videos or local source code.
 
 </div>
 
-A command-line tool designed to produce a context file from various sources, to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy. Currently, it processes local directories (for code), GitHub repositories (for code), and YouTube videos (for transcript), outputting the content in a markdown format optimized for AI models.
+A command-line tool designed to produce context files from various sources, to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy. It can process multiple sources to output the context in a markdown format optimized for use by AI models.
 
 ## Features
 
-* **Local Directory Processing**: mainly for locally available code bases (directories or git repos); includes directory structure and file contents within context
-* **GitHub Repository Processing**: clones and processes provided github link and does the same as *Local Directory Processing*
-* **YouTube Transcript Processing**: downloads transcripts for given YouTube video link and preserves time segments
+- **Local Directory Processing**
+    - this is mainly for locally available code bases (directories or already cloned git repos)
+    - the context file includes directory structure and all file contents within context
+- **GitHub Repository Processing**
+    - this clones and processes provided github link and does the same as *Local Directory Processing*
+    - it temporarily clones the repository, so no need for cleanup
+- **YouTube Transcript Processing**
+    - this downloads transcripts for given YouTube video link and preserves time segments
 
 ## Installation
 
-You can either download built binaries directly or build locally.
-
-To download the latest release for your platform and OS, visit the [releases page](https://github.com/tanq16/ai-context/releases). Binaries are available for Windows, MacOS, and Linux for both AMD64 (x86_64) and ARM64 (incl. Apple Silicon) architectures.
-
-To build locally, dothe following:
-
-```bash
-# Clone
-git clone https://github.com/tanq16/ai-context.git
-cd ai-context
-
-# Build
-go build .
-```
+- **Binary**
+    - Download the latest release for your platform and OS from the [releases page](https://github.com/tanq16/ai-context/releases)
+    - Binaries are build via GitHub actions for MacOS, Linux, and Windows for both AMD64 (x86_64) and ARM64 (incl. Apple Silicon) architectures
+    - Use this to download specific version if needed
+- **Go Install**
+    - Run the following command (requires `Go v1.22+`):
+    ```bash
+    go install github.com/tanq16/ai-context@latest
+    ```
+    - For specific versions, prefer the binaries or local build process as I haven't implemented Go binary versioning for the project
+- **Local Build**
+    - To build locally, do the following:
+    ```bash
+    # Clone
+    git clone https://github.com/tanq16/ai-context.git && \
+    cd ai-context
+    ```
+    ```bash
+    # Build
+    go build .
+    ```
 
 ## Usage
 
 ```bash
-# Process a local directory (default output file ai-context.md)
-ai-context -d /path/to/directory
+# Process a single path (local directory) with additional ignore patterns
+ai-context -u /path/to/directory  -i "tests,docs,*doc.*"
 
-# Process a GitHub repository (manually specified output file)
-ai-context -u https://github.com/username/repo -o output.md
+# Process a single URL (GitHub repository or YouTube Video)
+ai-context -u https://www.youtube.com/watch?v=video_id
 
-# Download a YouTube video transcript
-ai-context -v https://www.youtube.com/watch?v=video_id
+# Make a list of paths
+cat << EOF > listfile
+../notif
+/working/cybernest
+https://github.com/assetnote/h2csmuggler
+EOF
 
-# Ignore specific patterns while processing
-ai-context -d ../massive-codebase -i "tests,docs"
+# Process everything concurrently
+ai-context -l listfile
 ```
+
+### Output
+
+- The tool creates a local folder called `context` and puts all gathered context into `.md` files in that folder.
+- The filenames have the following syntax: `TYPE-PATHNAME.md` (example, `gh-ffuf_ffuf.md`).
+- Every single path in the `listfile` mode will result in a new context file.
 
 ### Command Line Options
 
-* `-d, --directory`: provide a local directory (can be relative) to process
-* `-u, --url`: provide a GitHub repository URL to process
-* `-v, --video`: provide a YouTube video URL to process
-* `-o, --output`: set the output file path (default: ai-context.md)
-* `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
-* `--debug`: verbose logging
+- `-u, --url`: provide a path (GitHub repository, YouTube video, relative or absolute directory path) to process
+- `-f, --file`: provide a file with a list of paths (URLs or directory paths) to process
+- `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
+- `-t, --threads`: (optional) number of workers for file processing; default value is 5
+- `--debug`: verbose logging (helpful if something isn't working as expected)
 
 > [!TIP]
-> Do a `head -n 200 ai-context.md` (or 500 lines) to view the content tree of the processed code base to see what's been included. Then you can refine your `-i` flag arguments to ignore additional patterns.
+> Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then you can refine your `-i` flag arguments to ignore additional patterns.
 
 ## Default Ignores
 
@@ -80,14 +101,6 @@ The tool automatically ignores common files and directories that typically don't
 
 For a full list, see `aicontext/ignores.go`.
 
-## Development
-
-AI Context is written in Go and has these dependencies:
-
-- `go-git` for repository cloning
-- `cobra` for command-line interface
-- `zerolog` for structured logging
-
 ## Contributing
 
 Feel free to submit issues and pull requests.
@@ -96,5 +109,5 @@ Feel free to submit issues and pull requests.
 
 This project takes inspiration from and references:
 
-- repomix (https://github.com/yamadashy/repomix)
-- innertube (https://github.com/tombulled/innertube)
+- [repomix](https://github.com/yamadashy/repomix): inspiration for turning code into context
+- [innertube](https://github.com/tombulled/innertube): inspiration for code to get transcript from YouTube video

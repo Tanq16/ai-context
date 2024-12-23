@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -11,17 +13,10 @@ import (
 )
 
 var cmdFlags struct {
-	directory  string
+	threads    int
 	url        string
-	output     string
 	listFile   string
 	ignoreList []string
-}
-
-var urlRegex = map[string]string{
-	"gh":     "https://github.com/.+/.+",
-	"yt":     "https://youtu.be/.+",
-	"ytfull": "https://www.youtube.com/watch\\?v=.+",
 }
 
 var rootCmd = &cobra.Command{
@@ -36,7 +31,35 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		aicontext.Handler(cmdFlags.directory, cmdFlags.url, cmdFlags.listFile, cmdFlags.output, cmdFlags.ignoreList)
+		if cmdFlags.url == "" && cmdFlags.listFile == "" {
+			log.Fatal().Msg("either url or list of urls must be specified")
+		}
+		if cmdFlags.url != "" && cmdFlags.listFile != "" {
+			log.Fatal().Msg("cannot specify both url and list file")
+		}
+
+		// Input URL processing
+		var urls []string
+		if cmdFlags.listFile == "" {
+			urls = append(urls, cmdFlags.url)
+		} else {
+			file, err := os.Open(cmdFlags.listFile)
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to open list file")
+			}
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				url := strings.TrimSpace(scanner.Text())
+				if url != "" {
+					urls = append(urls, url)
+				}
+			}
+			if scanner.Err() != nil {
+				log.Fatal().Err(scanner.Err()).Msg("failed to read list file")
+			}
+		}
+		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads)
 		log.Info().Msg("All Operations Completed!")
 	},
 }
@@ -62,10 +85,8 @@ func init() {
 	log.Logger = zerolog.New(output).With().Timestamp().Logger()
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 
-	// TODO: Reduce to 3 flags: "input" "ignore" "list"
-	rootCmd.Flags().StringVarP(&cmdFlags.directory, "directory", "d", "", "Local directory to process")
 	rootCmd.Flags().StringVarP(&cmdFlags.url, "url", "u", "", "URL to process (GitHub, YouTube)")
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
-	rootCmd.Flags().StringVarP(&cmdFlags.output, "output", "o", "ai-context.md", "Output file path (default: ai-context.md)")
+	rootCmd.Flags().IntVarP(&cmdFlags.threads, "threads", "t", 5, "Number of threads to use for processing (default: 5)")
 	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs'); helpful with GitHub or local directories")
 }
