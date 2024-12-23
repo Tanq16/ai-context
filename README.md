@@ -122,10 +122,6 @@ The tool automatically ignores common files and directories that typically don't
 
 For a full list, see `aicontext/ignores.go`.
 
-## Contributing
-
-Feel free to submit issues or PRs.
-
 ## Acknowledgments
 
 This project takes inspiration from and references:
