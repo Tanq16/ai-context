@@ -70,6 +70,9 @@ EOF
 ai-context -l listfile
 ```
 
+> [!WARNING]
+> For directory path (in URL or listfile mode), the path should either start with `/` (absolute) or with `./` or `../` (relative). For current directory, always use `./` for correct regex matching.
+
 ### Output
 
 - The tool creates a local folder called `context` and puts all gathered context into `.md` files in that folder.

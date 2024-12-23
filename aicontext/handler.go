@@ -152,7 +152,6 @@ func Handler(urls []string, ignoreList []string, threads int) {
 			matched := false
 			for ut, reg := range urlRegex {
 				if isMatch, _ := regexp.MatchString(reg, u); isMatch {
-					fmt.Printf("URL: %s\nType: %s\n", u, ut)
 					if ut == "yt" || ut == "yt1" || ut == "yt2" {
 						inputURLChan <- input{url: u, urlType: "yt"}
 					} else {
