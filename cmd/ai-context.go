@@ -20,10 +20,7 @@ var cmdFlags struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "ai-context",
-	// REFERENCES:
-	// - https://github.com/yamadashy/repomix
-	// - https://github.com/tombulled/innertube
+	Use:   "ai-context",
 	Short: "Produce AI context-file for GitHub project, directory, or YouTube video.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if debug, _ := cmd.Flags().GetBool("debug"); !debug {

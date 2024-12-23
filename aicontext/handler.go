@@ -92,8 +92,15 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully generated transcript")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "generic":
-		// TODO: Implement generic URL processing
-		return
+		output := path.Join("context", "web-"+getOutFileName(toProcess.url))
+		err := ProcessWebContent(toProcess.url, output)
+		if err != nil {
+			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process web content")
+			resultChan <- result{url: toProcess.url, err: err}
+			return
+		}
+		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed web content")
+		resultChan <- result{url: toProcess.url, err: nil}
 	}
 }
 
@@ -173,9 +180,7 @@ func Handler(urls []string, ignoreList []string, threads int) {
 		}
 	}(urls)
 
-	fmt.Println("Here")
 	outerWG.Wait()
-	fmt.Println("Here1")
 
 	// Remove images directory if it's empty
 	if files, err := os.ReadDir(path.Join("context", "images")); err != nil || len(files) == 0 {
