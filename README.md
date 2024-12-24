@@ -83,7 +83,7 @@ https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
 EOF
 
 # Process everything concurrently
-ai-context -l listfile
+ai-context -f listfile
 ```
 
 > [!WARNING]
