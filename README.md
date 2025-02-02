@@ -83,6 +83,9 @@ EOF
 
 # Process URL list concurrently
 ai-context -f listfile
+
+# Process private GitHub repository
+GH_TOKEN=$(cat /secrets/GH.PAT) ai-context -u https://github.com/ORG/REPO
 ```
 
 > [!WARNING]
