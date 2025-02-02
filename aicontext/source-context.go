@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	log "github.com/rs/zerolog/log"
 )
 
@@ -92,11 +93,19 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+	cloneOpts := &git.CloneOptions{
 		URL:      url,
 		Progress: nil,
 		Depth:    1,
-	})
+	}
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		log.Debug().Msg("using GitHub token for authentication")
+		cloneOpts.Auth = &http.BasicAuth{
+			Username: "git", // can be anything but not empty
+			Password: token,
+		}
+	}
+	_, err = git.PlainClone(tempDir, false, cloneOpts)
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}

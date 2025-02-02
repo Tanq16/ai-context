@@ -11,13 +11,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GoDoc](https://godoc.org/github.com/tanq16/ai-context?status.svg)](https://godoc.org/github.com/tanq16/ai-context)
 
-Generate AI-friendly markdown context files from repositories or videos or webpages or local source code.
+Generate AI-friendly markdown files from GitHub repositories, local source code, YouTube videos, or webpages.
 
 </div>
 
 ---
 
-A command-line tool designed to produce context files from various sources, to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy. It can process multiple sources to output the context in a markdown format optimized for use by AI models.
+A multi-architecture, multi-OS, command-line tool with concurrency support that produces context files in markdown from various sources to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy.
 
 `Quickstart` &rarr;
 
@@ -32,36 +32,35 @@ ai-context -f urllist.file                           # URL file
     - this is mainly for locally available code bases (directories or already cloned git repos)
     - the context file includes directory structure and all file contents within context
 - **GitHub Repository Processing**
-    - this clones and processes provided github link and does the same as *Local Directory Processing*
+    - this clones and processes provided GitHub link and does the same as *Local Directory Processing*
     - it temporarily clones the repository, so no need for cleanup
+    - it also supports private repositories on GitHub through use of `GH_TOKEN` environment variable
 - **YouTube Transcript Processing**
-    - this downloads transcripts for given YouTube video link and preserves time segments
+    - this downloads transcripts for given YouTube video link and stores it as markdown
+    - the transcript also preserves time segments
 - **WebPage Processing**
-    - this converts the HTML of a webpage to markdown
-    - it also downloads all images from the page and stores them locally with UUID names
-    - the images in markdown will refer to local paths
+    - this converts an HTML webpage to markdown text, stripping off JS and CSS
+    - it also downloads all images from the page and stores them locally with UUID filenames
+    - the markdown text includes links via local paths to the downloaded images
 
 ## Installation
 
 - **Binary**
     - Download the latest release for your platform and OS from the [releases page](https://github.com/tanq16/ai-context/releases)
-    - Binaries are build via GitHub actions for MacOS, Linux, and Windows for both AMD64 (x86_64) and ARM64 (incl. Apple Silicon) architectures
-    - Use this to download specific version if needed
+    - Binaries are build via GitHub actions for MacOS, Linux, and Windows for both AMD64 (x86_64) and ARM64 (like Apple Silicon) architectures
+    - You can also download specific versions if needed; however, the latest version is recommended
 - **Go Install**
     - Run the following command (requires `Go v1.22+`):
     ```bash
     go install github.com/tanq16/ai-context@latest
     ```
-    - For specific versions, prefer the binaries or local build process as I haven't implemented Go binary versioning for the project
+    - For specific versions, use binaries or build specific commits as I have not and will not implement Go-native binary versioning
 - **Local Build**
-    - To build locally, do the following:
     ```bash
-    # Clone
     git clone https://github.com/tanq16/ai-context.git && \
     cd ai-context
     ```
     ```bash
-    # Build
     go build .
     ```
 
@@ -82,7 +81,7 @@ https://github.com/assetnote/h2csmuggler
 https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
 EOF
 
-# Process everything concurrently
+# Process URL list concurrently
 ai-context -f listfile
 ```
 
@@ -91,26 +90,26 @@ ai-context -f listfile
 
 ### Output
 
-- The tool creates a local folder called `context` and puts all gathered context into `.md` files in that folder.
-- The filenames have the following syntax: `TYPE-PATHNAME.md` (example, `gh-ffuf_ffuf.md`).
-- Every single path in the `listfile` mode will result in a new context file.
-- All images are named as a UUID and are downloaded to `context/images` directory.
+- The tool creates a local folder called `context` and puts everything converted into `.md` files in that folder
+- The filenames have the syntax of `TYPE-PATHNAME.md` (example, `gh-ffuf_ffuf.md`)
+- Every single path in the `listfile` mode will result in a new context file
+- All images (only downloaded via webpages) are named as UUIDs and stored in the `context/images` directory (images are downloaded as a conenience, but doesn't take away from text-first context creation)
 
 ### Command Line Options
 
 - `-u, --url`: provide a path (GitHub repo, YouTube video, WebPage link, or relative/absolute directory path) to process
 - `-f, --file`: provide a file with a list of paths (URLs or directory paths) to process
 - `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
-- `-t, --threads`: (optional) number of workers for file processing; default value is 5
-- `--debug`: verbose logging (helpful if something isn't working as expected)
+- `-t, --threads`: (*optional*) number of workers for concurrent file processing when passing list file (default = 5)
+- `--debug`: verbose logging (helpful if something isn't working as expected or you want to see individual steps)
 
 > [!TIP]
 > - Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
-> - When processing a large number of items, it can look stalled due to thread limits and image download times; use `--debug` to enable verbose logs to know it's running.
+> - When processing a large number of items, it can look stalled due to thread limits and image download times; use `--debug` to enable verbose logs to know what's running.
 
 ## Default Ignores
 
-The tool automatically ignores common files and directories that typically don't add value to the context, including:
+The tool includes pre-defined and sensible ignore patterns, including common files and directories that typically don't add value to the context. These are:
 
 - Version control files (.git, .gitignore)
 - Dependencies (node_modules, vendor)
@@ -124,8 +123,9 @@ For a full list, see `aicontext/ignores.go`.
 
 ## Acknowledgments
 
-This project takes inspiration from and references:
+This project takes inspiration from, uses, or references:
 
 - [repomix](https://github.com/yamadashy/repomix): inspiration for turning code into context
 - [innertube](https://github.com/tombulled/innertube): inspiration for code to get transcript from YouTube video
 - [html-to-markdown](https://github.com/JohannesKaufmann/html-to-markdown/v2): used to convert HTML to MD
+- [go-git](https://github.com/go-git/go-git/tree/main): git operations in Go
