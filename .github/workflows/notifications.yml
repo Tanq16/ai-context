@@ -1,0 +1,61 @@
+name: Custom Notifications
+on:
+  schedule:
+    - cron: '30 16 * * 6' # 4:30 pm UTC every saturday
+  issues:
+    types: [opened, edited, deleted, closed]
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ["Release Build"]
+    types: [completed]
+  pull_request:
+    types: [opened, closed, edited, review_requested]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  weekly-summary:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate Summary
+        run: |
+          REPO="${{ github.repository }}"
+          STARS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO" | jq .stargazers_count)
+          FORKS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO" | jq .forks_count)
+          COMMITS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/$REPO/commits?since=$(date -u -d 'last saturday' '+%Y-%m-%dT%H:%M:%SZ')" | jq length)
+          curl -H "Content-Type: application/json" -X POST \
+          -d "{\"content\": \"*Weekly summary for **$REPO***\nStars - $STARS, Forks - $FORKS, Commits this week - $COMMITS\"}" ${{ secrets.DISCORD_WEBHOOK }}
+
+  issue-comment-notification:
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on Issue or Comment
+        if: github.actor != 'Tanq16'
+        run: |
+          curl -H "Content-Type: application/json" -X POST \
+          -d "{\"content\": \"*New issue/comment from **${{ github.actor }}***\n${{ github.event.issue.html_url }}\"}" ${{ secrets.DISCORD_WEBHOOK }}
+
+  build-status-notification:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on Build Status
+        run: |
+          curl -H "Content-Type: application/json" -X POST \
+          -d "{\"content\": \"*Workflow run for **${{ github.repository }}***\n${{ github.event.workflow_run.name }} - ${{ github.event.workflow_run.conclusion }}\"}" ${{ secrets.DISCORD_WEBHOOK }}
+
+  pull-request-notification:
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on PR related activities
+        if: github.actor != 'Tanq16'
+        run: |
+          curl -H "Content-Type: application/json" -X POST \
+          -d "{\"content\": \"*New PR activity from **${{ github.actor }}***\n${{ github.event.pull_request.html_url }}\"}" ${{ secrets.DISCORD_WEBHOOK }}
