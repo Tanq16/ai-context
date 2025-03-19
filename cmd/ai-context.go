@@ -19,9 +19,12 @@ var cmdFlags struct {
 	ignoreList []string
 }
 
+var AIContextVersion = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "ai-context",
-	Short: "Produce AI context-file for GitHub project, directory, or YouTube video.",
+	Use:     "ai-context",
+	Short:   "Produce AI context-file for GitHub project, directory, or YouTube video.",
+	Version: AIContextVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if debug, _ := cmd.Flags().GetBool("debug"); !debug {
 			zerolog.SetGlobalLevel(zerolog.InfoLevel)

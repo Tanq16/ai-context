@@ -69,7 +69,7 @@ jobs:
 
       - name: Build Binary
         run: |
-            GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o ai-context${{ matrix.os == 'windows' && '.exe' || '' }} .
+            GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags="-s -w -X github.com/tanq16/ai-context/cmd.AIContextVersion=${{ needs.process-commit.outputs.version }}" -o ai-context${{ matrix.os == 'windows' && '.exe' || '' }} .
             zip -r ai-context-${{ matrix.os }}-${{ matrix.arch }}.zip ai-context${{ matrix.os == 'windows' && '.exe' || '' }} README.md LICENSE
 
       - name: Upload Release Asset

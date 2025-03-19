@@ -1,23 +1,19 @@
 <div align="center">
 
-<img src=".github/assets/logo.png" alt="AI Context Logo" width="225"/>
+<img src=".github/assets/logo.png" alt="AI Context Logo" width="250"/>
 
 <h1>AI Context</h1>
 
 [![Release Build](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml/badge.svg)](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/tanq16/ai-context)](https://github.com/Tanq16/ai-context/releases/latest)
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/tanq16/ai-context)](https://goreportcard.com/report/github.com/tanq16/ai-context)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GoDoc](https://godoc.org/github.com/tanq16/ai-context?status.svg)](https://godoc.org/github.com/tanq16/ai-context)
+Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy.
 
-Generate AI-friendly markdown files from GitHub repositories, local source code, YouTube videos, or webpages.
+<a href="#features">Features</a> &bull; <a href="#installation">Installation</a> &bull; <a href="#usage">Usage</a> &bull; <a href="#acknowledgments">Acknowledgements</a>
 
 </div>
 
 ---
-
-A multi-architecture, multi-OS, command-line tool with concurrency support that produces context files in markdown from various sources to make interactions with LLM apps (like ChatGPT, Claude, etc.) easy.
 
 `Quickstart` &rarr;
 
@@ -110,7 +106,7 @@ GH_TOKEN=$(cat /secrets/GH.PAT) ai-context -u https://github.com/ORG/REPO
 > - Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
 > - When processing a large number of items, it can look stalled due to thread limits and image download times; use `--debug` to enable verbose logs to know what's running.
 
-## Default Ignores
+### Default Ignores
 
 The tool includes pre-defined and sensible ignore patterns, including common files and directories that typically don't add value to the context. These are:
 
