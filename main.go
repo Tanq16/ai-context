@@ -22,13 +22,13 @@
 // Example Usage:
 //
 //	# Process a local directory
-//	ai-context -d /path/to/directory -o output.md
+//	ai-context /path/to/directory -o output.md
 //
 //	# Process a GitHub repository
-//	ai-context -u https://github.com/username/repo -o output.md
+//	ai-context https://github.com/username/repo -o output.md
 //
 //	# Download a YouTube transcript
-//	ai-context -v https://www.youtube.com/watch?v=video_id -o output.md
+//	ai-context https://www.youtube.com/watch?v=video_id -o output.md
 package main
 
 import "github.com/tanq16/ai-context/cmd"

@@ -30,12 +30,14 @@ var rootCmd = &cobra.Command{
 			zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		}
 	},
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if cmdFlags.url == "" && cmdFlags.listFile == "" {
-			log.Fatal().Msg("either url or list of urls must be specified")
-		}
-		if cmdFlags.url != "" && cmdFlags.listFile != "" {
-			log.Fatal().Msg("cannot specify both url and list file")
+		if len(args) > 0 && cmdFlags.listFile == "" {
+			cmdFlags.url = args[0]
+		} else if len(args) == 0 && cmdFlags.listFile == "" {
+			log.Fatal().Msg("no URL argument or list file provided")
+		} else if len(args) > 0 && cmdFlags.listFile != "" {
+			log.Fatal().Msg("received both URL argument and list file")
 		}
 
 		// Input URL processing

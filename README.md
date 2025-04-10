@@ -18,8 +18,8 @@ Generate AI-friendly markdown files from GitHub repos, local code, YouTube video
 `Quickstart` &rarr;
 
 ```bash
-ai-context -u "https://github.com/tanq16/ai-context" # single URL
-ai-context -f urllist.file                           # URL file
+ai-context "https://github.com/tanq16/ai-context" # single URL
+ai-context -f urllist.file                        # URL file
 ```
 
 ## Features
@@ -64,10 +64,10 @@ ai-context -f urllist.file                           # URL file
 
 ```bash
 # Process a single path (local directory) with additional ignore patterns
-ai-context -u /path/to/directory  -i "tests,docs,*doc.*"
+ai-context /path/to/directory  -i "tests,docs,*doc.*"
 
 # Process one URL (GitHub repo or YouTube Video or Webpage URL)
-ai-context -u https://www.youtube.com/watch?v=video_id
+ai-context https://www.youtube.com/watch?v=video_id
 
 # Make a list of paths
 cat << EOF > listfile
@@ -96,7 +96,7 @@ GH_TOKEN=$(cat /secrets/GH.PAT) ai-context -u https://github.com/ORG/REPO
 
 ### Command Line Options
 
-- `-u, --url`: provide a path (GitHub repo, YouTube video, WebPage link, or relative/absolute directory path) to process
+- CLI argument: provide a path (GitHub repo, YouTube video, WebPage link, or relative/absolute directory path) to process
 - `-f, --file`: provide a file with a list of paths (URLs or directory paths) to process
 - `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
 - `-t, --threads`: (*optional*) number of workers for concurrent file processing when passing list file (default = 5)
