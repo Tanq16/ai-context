@@ -12,7 +12,6 @@ import (
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/google/uuid"
-	log "github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
 
@@ -37,7 +36,7 @@ func ProcessWebContent(urlStr, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
-	log.Debug().Msg("processing images")
+	// log.Debug().Msg("processing images")
 	err = processImages(doc, baseURL)
 	if err != nil {
 		return fmt.Errorf("failed to process images: %w", err)
@@ -69,7 +68,7 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 				if attr.Key == "src" {
 					imgURL, err := url.Parse(attr.Val)
 					if err != nil {
-						log.Warn().Err(err).Str("url", attr.Val).Msg("failed to parse image URL")
+						// log.Warn().Err(err).Str("url", attr.Val).Msg("failed to parse image URL")
 						continue
 					}
 					if !imgURL.IsAbs() {
@@ -82,7 +81,7 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 					localPath := path.Join("context", "images", filename)
 					err = downloadImage(imgURL.String(), localPath)
 					if err != nil {
-						log.Warn().Err(err).Str("url", imgURL.String()).Msg("failed to download image")
+						// log.Warn().Err(err).Str("url", imgURL.String()).Msg("failed to download image")
 						continue
 					}
 					// make src point to local image

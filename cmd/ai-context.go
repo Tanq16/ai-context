@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/tanq16/ai-context/aicontext"
+	u "github.com/tanq16/ai-context/utils"
 )
 
 var cmdFlags struct {
@@ -25,19 +23,16 @@ var rootCmd = &cobra.Command{
 	Use:     "ai-context",
 	Short:   "Produce AI context-file for GitHub project, directory, or YouTube video.",
 	Version: AIContextVersion,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if debug, _ := cmd.Flags().GetBool("debug"); !debug {
-			zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		}
-	},
-	Args: cobra.MaximumNArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 && cmdFlags.listFile == "" {
 			cmdFlags.url = args[0]
 		} else if len(args) == 0 && cmdFlags.listFile == "" {
-			log.Fatal().Msg("no URL argument or list file provided")
+			u.PrintError("no URL argument or list file provided")
+			os.Exit(1)
 		} else if len(args) > 0 && cmdFlags.listFile != "" {
-			log.Fatal().Msg("received both URL argument and list file")
+			u.PrintError("received both URL argument and list file")
+			os.Exit(1)
 		}
 
 		// Input URL processing
@@ -47,7 +42,8 @@ var rootCmd = &cobra.Command{
 		} else {
 			file, err := os.Open(cmdFlags.listFile)
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to open list file")
+				u.PrintError("failed to open list file")
+				os.Exit(1)
 			}
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -58,11 +54,11 @@ var rootCmd = &cobra.Command{
 				}
 			}
 			if scanner.Err() != nil {
-				log.Fatal().Err(scanner.Err()).Msg("failed to read list file")
+				u.PrintError("failed to read list file")
+				os.Exit(1)
 			}
 		}
 		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads)
-		log.Info().Msg("All Operations Completed!")
 	},
 }
 
@@ -76,17 +72,6 @@ func Execute() {
 }
 
 func init() {
-	// Configure global logger
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	output := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.DateTime,
-		NoColor:    false, // Enable color output
-	}
-	// Set global logger with console writer
-	log.Logger = zerolog.New(output).With().Timestamp().Logger()
-	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
-
 	// rootCmd.Flags().StringVarP(&cmdFlags.url, "url", "u", "", "URL to process (GitHub, YouTube)")
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
 	rootCmd.Flags().IntVarP(&cmdFlags.threads, "threads", "t", 5, "Number of threads to use for processing")

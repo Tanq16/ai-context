@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	log "github.com/rs/zerolog/log"
 )
 
 // TranscriptParams holds the parameters for the transcript request
@@ -135,11 +133,11 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	}
 	// Extract the API key from the page
 	apiKey, err := extractInnertubeKey(videoID)
-	log.Debug().Str("apiKey", apiKey).Msg("extracted API key")
+	// log.Debug().Str("apiKey", apiKey).Msg("extracted API key")
 	if err != nil {
 		// Fall back to default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-		log.Debug().Msg("falling back to publicly known Web Client API key")
+		// log.Debug().Msg("falling back to publicly known Web Client API key")
 	}
 	// Create InnerTube request for video data
 	nextReq := InnerTubeRequest{}
@@ -154,13 +152,13 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video data: %v", err)
 	}
-	log.Debug().Msg("got video data")
+	// log.Debug().Msg("got video data")
 	// Extract transcript parameters
 	params, err := getTranscriptParams(videoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript params: %v", err)
 	}
-	log.Debug().Str("params", params).Msg("got transcript params")
+	// log.Debug().Str("params", params).Msg("got transcript params")
 	transcriptReq := map[string]interface{}{
 		"params":  params,
 		"context": nextReq.Context,
@@ -169,13 +167,13 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript: %v", err)
 	}
-	log.Debug().Msg("got transcript data")
+	// log.Debug().Msg("got transcript data")
 	// Format transcript segments
 	segments, err := formatTranscriptSegments(transcriptData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format transcript: %v", err)
 	}
-	log.Debug().Msg("formatted transcript")
+	// log.Debug().Msg("formatted transcript")
 	return segments, nil
 }
 

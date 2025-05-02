@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	log "github.com/rs/zerolog/log"
 )
 
 // FileEntry holds the file path, content, and language
@@ -99,7 +98,7 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 		Depth:    1,
 	}
 	if token := os.Getenv("GH_TOKEN"); token != "" {
-		log.Debug().Msg("using GitHub token for authentication")
+		// log.Debug().Msg("using GitHub token for authentication")
 		cloneOpts.Auth = &http.BasicAuth{
 			Username: "git", // can be anything but not empty
 			Password: token,
@@ -109,7 +108,7 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
-	log.Debug().Str("path", tempDir).Msg("cloned repository")
+	// log.Debug().Str("path", tempDir).Msg("cloned repository")
 	return p.ProcessDirectory(tempDir)
 }
 
@@ -119,7 +118,7 @@ func (p *Processor) processDirectory(root string) (*Output, error) {
 		GenerationDate: time.Now().Format(time.RFC3339),
 		Files:          make([]FileEntry, 0),
 	}
-	log.Debug().Str("path", root).Msg("processing directory")
+	// log.Debug().Str("path", root).Msg("processing directory")
 	var totalSize int64
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -159,7 +158,7 @@ func (p *Processor) processDirectory(root string) (*Output, error) {
 	output.FileCount = len(output.Files)
 	output.TotalSize = totalSize
 	output.DirectoryTree = p.generateDirectoryTree(root)
-	log.Debug().Int("fileCount", output.FileCount).Int64("totalSize", output.TotalSize).Msg("processed directory")
+	// log.Debug().Int("fileCount", output.FileCount).Int64("totalSize", output.TotalSize).Msg("processed directory")
 	return output, nil
 }
 
@@ -177,7 +176,7 @@ func (p *Processor) writeOutput(output *Output) error {
 	if err := tmpl.Execute(file, output); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
 	}
-	log.Debug().Str("path", p.config.OutputPath).Msg("wrote output")
+	// log.Debug().Str("path", p.config.OutputPath).Msg("wrote output")
 	return nil
 }
 
@@ -261,7 +260,7 @@ func (p *Processor) generateDirectoryTree(root string) string {
 	if err != nil {
 		return fmt.Sprintf("Error generating tree: %v", err)
 	}
-	log.Debug().Msg("generated directory tree")
+	// log.Debug().Msg("generated directory tree")
 	return tree.String()
 }
 
