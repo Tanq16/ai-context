@@ -99,8 +99,7 @@ GH_TOKEN=$(cat /secrets/GH.PAT) ai-context -u https://github.com/ORG/REPO
 - CLI argument: provide a path (GitHub repo, YouTube video, WebPage link, or relative/absolute directory path) to process
 - `-f, --file`: provide a file with a list of paths (URLs or directory paths) to process
 - `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
-- `-t, --threads`: (*optional*) number of workers for concurrent file processing when passing list file (default = 5)
-- `--debug`: verbose logging (helpful if something isn't working as expected or you want to see individual steps)
+- `-t, --threads`: (*optional*) number of workers for concurrent file processing when passing list file (default = 10)
 
 > [!TIP]
 > - Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
@@ -114,7 +113,6 @@ The tool includes pre-defined and sensible ignore patterns, including common fil
 - Dependencies (node_modules, vendor)
 - Compiled files (*.exe, *.dll)
 - Media files (images, videos, audio)
-- Documentation files
 - Lock files (package-lock.json, yarn.lock)
 - Build artifacts and caches
 
