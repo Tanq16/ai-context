@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/rs/zerolog/log"
+	"github.com/tanq16/ai-context/utils"
 )
 
 var urlRegex = map[string]string{
@@ -29,7 +29,6 @@ type input struct {
 	urlType string
 }
 
-// getOutFileName remove all special characters, path, and URL artifacts to produce a unique filename
 func getOutFileName(input string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	reReplace := regexp.MustCompile(`https?_|www_|youtube_com_|github_com_|watch_v_|__`)
@@ -40,7 +39,6 @@ func getOutFileName(input string) string {
 	return res + ".md"
 }
 
-// handlerWorker processes the input and sends the result to the result channel
 func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
 	switch toProcess.urlType {
 	case "gh":
@@ -51,11 +49,9 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		})
 		err := processor.ProcessGitHubURL(toProcess.url)
 		if err != nil {
-			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process GitHub URL")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed GtHub URL")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "dir":
 		output := path.Join("context", "dir-"+getOutFileName(toProcess.url))
@@ -65,17 +61,14 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		})
 		err := processor.ProcessDirectory(toProcess.url)
 		if err != nil {
-			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process directory")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed directory")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "yt":
 		segments, err := DownloadTranscript(toProcess.url)
 		output := path.Join("context", "yt-"+getOutFileName(toProcess.url))
 		if err != nil {
-			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to get transcript")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
@@ -85,46 +78,68 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 			content.WriteString(fmt.Sprintf("[%s] %s\n\n", segment.StartTime, segment.Text))
 		}
 		if err := os.WriteFile(output, []byte(content.String()), 0644); err != nil {
-			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to write transcript")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully generated transcript")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "generic":
 		output := path.Join("context", "web-"+getOutFileName(toProcess.url))
 		err := ProcessWebContent(toProcess.url, output)
 		if err != nil {
-			log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process web content")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed web content")
 		resultChan <- result{url: toProcess.url, err: nil}
 	}
 }
 
-// Handler processes tasks
 func Handler(urls []string, ignoreList []string, threads int) {
+	outputMgr := utils.NewManager(0)
+	outputMgr.StartDisplay()
+	defer outputMgr.StopDisplay()
+	funcId := outputMgr.Register("AI Context")
+	outputMgr.SetMessage(funcId, "Creating file structure")
+
 	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
-		log.Fatal().Err(err).Msg("failed to create 'context' directory")
+		outputMgr.ReportError(funcId, fmt.Errorf("couldn't create context directory: %w", err))
+		return
 	}
 	if err := os.MkdirAll(path.Join("context", "images"), 0755); err != nil {
-		log.Fatal().Err(err).Msg("failed to create images directory in 'context'")
+		outputMgr.ReportError(funcId, fmt.Errorf("couldn't create images directory: %w", err))
+		return
 	}
+	totUrls := len(urls)
+	pluralS := "s"
+	if totUrls == 1 {
+		pluralS = ""
+	}
+	outputMgr.SetMessage(funcId, fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
 
 	inputURLChan := make(chan input)
 	resultChan := make(chan result)
+	progressChan := make(chan int64)
 	var outerWG sync.WaitGroup
+
+	// Start progress reporter
+	outerWG.Add(1)
+	go func(totUrls int64) {
+		defer outerWG.Done()
+		totCompleted := int64(0)
+		for completed := range progressChan {
+			totCompleted += completed
+			outputMgr.AddProgressBarToStream(funcId, totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
+		}
+	}(int64(totUrls))
 
 	// Start handler goroutines
 	outerWG.Add(1)
-	go func() {
+	go func(progCh chan<- int64) {
 		var wg sync.WaitGroup
 		semaphore := make(chan struct{}, threads)
 		defer outerWG.Done()
 		defer close(resultChan)
+		defer close(progressChan)
 		defer close(semaphore)
 		defer wg.Wait()
 		for toProcess := range inputURLChan {
@@ -134,9 +149,10 @@ func Handler(urls []string, ignoreList []string, threads int) {
 				defer wg.Done()
 				defer func() { <-semaphore }()
 				handlerWorker(toProcess, resultChan, ignoreList)
+				progressChan <- 1
 			}(toProcess)
 		}
-	}()
+	}(progressChan)
 
 	// Start result collector
 	outerWG.Add(1)
@@ -173,27 +189,38 @@ func Handler(urls []string, ignoreList []string, threads int) {
 				matched = true
 			}
 			if !matched {
-				log.Error().Str("url", u).Msg("invalid URL format")
+				// log.Error().Str("url", u).Msg("invalid URL format")
 			} else {
-				log.Debug().Str("url", u).Msg("processing input")
+				// log.Debug().Str("url", u).Msg("processing input")
 			}
 		}
 	}(urls)
 
 	outerWG.Wait()
 
-	// Remove images directory if it's empty
-	if files, err := os.ReadDir(path.Join("context", "images")); err != nil || len(files) == 0 {
-		if err := os.RemoveAll(path.Join("context", "images")); err != nil {
-			log.Error().Err(err).Msg("failed to remove 'images' directory")
-		}
-	}
-
 	// Error Collation
+	var errMsg string
 	if len(errors) > 0 {
 		for _, err := range errors {
-			log.Error().Err(err).Msg("processing error")
+			errMsg += (err.Error() + "\n")
 		}
-		log.Fatal().Msg("one or more URLs failed to process")
+	}
+	// Remove images directory if it's empty
+	files, err := os.ReadDir(path.Join("context", "images"))
+	if err != nil {
+		outputMgr.SetMessage(funcId, "Operations Completed, error in cleanup")
+		errMsg += (fmt.Errorf("couldn't read images directory: %w", err)).Error() + "\n"
+	} else if len(files) == 0 {
+		err := os.RemoveAll(path.Join("context", "images"))
+		if err != nil {
+			outputMgr.SetMessage(funcId, "Operations Completed, error in cleanup")
+			errMsg += (fmt.Errorf("failed to delete empty images directory: %w", err)).Error() + "\n"
+		}
+	}
+	// Complete output manager
+	if errMsg != "" {
+		outputMgr.ReportError(funcId, fmt.Errorf("%s", errMsg))
+	} else {
+		outputMgr.Complete(funcId, "All operations completed")
 	}
 }

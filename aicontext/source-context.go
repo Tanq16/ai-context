@@ -10,17 +10,14 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	log "github.com/rs/zerolog/log"
 )
 
-// FileEntry holds the file path, content, and language
 type FileEntry struct {
 	Path     string
 	Content  string
 	Language string
 }
 
-// Output holds the output data
 type Output struct {
 	GenerationDate string
 	FileCount      int
@@ -29,7 +26,6 @@ type Output struct {
 	Files          []FileEntry
 }
 
-// ProcessorConfig holds the configuration for the processor
 type ProcessorConfig struct {
 	OutputPath        string
 	AdditionalIgnores []string
@@ -65,11 +61,8 @@ Generated on: {{.GenerationDate}}
 ` + "```" + `
 
 
-
-
 {{end}}`
 
-// NewProcessor creates a new Processor instance
 func NewProcessor(config ProcessorConfig) *Processor {
 	return &Processor{
 		config:         config,
@@ -77,7 +70,6 @@ func NewProcessor(config ProcessorConfig) *Processor {
 	}
 }
 
-// ProcessDirectory processes the directory
 func (p *Processor) ProcessDirectory(path string) error {
 	output, err := p.processDirectory(path)
 	if err != nil {
@@ -86,7 +78,6 @@ func (p *Processor) ProcessDirectory(path string) error {
 	return p.writeOutput(output)
 }
 
-// ProcessGitHubURL processes the GitHub URL
 func (p *Processor) ProcessGitHubURL(url string) error {
 	tempDir, err := os.MkdirTemp("", "aicontext-clone-")
 	if err != nil {
@@ -99,7 +90,6 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 		Depth:    1,
 	}
 	if token := os.Getenv("GH_TOKEN"); token != "" {
-		log.Debug().Msg("using GitHub token for authentication")
 		cloneOpts.Auth = &http.BasicAuth{
 			Username: "git", // can be anything but not empty
 			Password: token,
@@ -109,17 +99,14 @@ func (p *Processor) ProcessGitHubURL(url string) error {
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
-	log.Debug().Str("path", tempDir).Msg("cloned repository")
 	return p.ProcessDirectory(tempDir)
 }
 
-// processGitRepository processes the Git repository
 func (p *Processor) processDirectory(root string) (*Output, error) {
 	output := &Output{
 		GenerationDate: time.Now().Format(time.RFC3339),
 		Files:          make([]FileEntry, 0),
 	}
-	log.Debug().Str("path", root).Msg("processing directory")
 	var totalSize int64
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -159,11 +146,9 @@ func (p *Processor) processDirectory(root string) (*Output, error) {
 	output.FileCount = len(output.Files)
 	output.TotalSize = totalSize
 	output.DirectoryTree = p.generateDirectoryTree(root)
-	log.Debug().Int("fileCount", output.FileCount).Int64("totalSize", output.TotalSize).Msg("processed directory")
 	return output, nil
 }
 
-// writeOutput writes the output to the file
 func (p *Processor) writeOutput(output *Output) error {
 	tmpl, err := template.New("markdown").Parse(markdownTemplate)
 	if err != nil {
@@ -177,11 +162,9 @@ func (p *Processor) writeOutput(output *Output) error {
 	if err := tmpl.Execute(file, output); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
 	}
-	log.Debug().Str("path", p.config.OutputPath).Msg("wrote output")
 	return nil
 }
 
-// detectLanguage detects the language based on the file extension
 func detectLanguage(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
@@ -230,7 +213,6 @@ func detectLanguage(path string) string {
 	}
 }
 
-// generateDirectoryTree generates the directory tree
 func (p *Processor) generateDirectoryTree(root string) string {
 	var tree strings.Builder
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -261,11 +243,9 @@ func (p *Processor) generateDirectoryTree(root string) string {
 	if err != nil {
 		return fmt.Sprintf("Error generating tree: %v", err)
 	}
-	log.Debug().Msg("generated directory tree")
 	return tree.String()
 }
 
-// helper function to find the minimum of two integers
 func min(a, b int) int {
 	if a < b {
 		return a

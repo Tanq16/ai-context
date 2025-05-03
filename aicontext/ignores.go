@@ -5,13 +5,11 @@ import (
 	"strings"
 )
 
-// IgnorePatterns holds the default and custom ignore patterns
 type IgnorePatterns struct {
 	defaultPatterns []string
 	customPatterns  []string
 }
 
-// newIgnorePatterns creates a new IgnorePatterns instance
 func newIgnorePatterns(additionalPatterns []string) *IgnorePatterns {
 	customPatterns := make([]string, len(additionalPatterns))
 	for i, pattern := range additionalPatterns {
@@ -23,9 +21,7 @@ func newIgnorePatterns(additionalPatterns []string) *IgnorePatterns {
 	}
 }
 
-// shouldIgnore checks if the path should be ignored
 func (ip *IgnorePatterns) shouldIgnore(path string) bool {
-	// Check default patterns
 	for _, pattern := range ip.defaultPatterns {
 		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
 			return true
@@ -45,12 +41,11 @@ func (ip *IgnorePatterns) shouldIgnore(path string) bool {
 }
 
 // funny heuristic, but it works against a very limited sample set
-// isBinary checks if the content is binary
 func isBinary(content []byte) bool {
 	nullCount := 0
 	nonPrintable := 0
 	checkSize := min(len(content), 512)
-	for i := 0; i < checkSize; i++ {
+	for i := range checkSize {
 		if content[i] == 0 {
 			nullCount++
 		} else if content[i] < 32 && content[i] != '\n' && content[i] != '\r' && content[i] != '\t' {
@@ -60,7 +55,7 @@ func isBinary(content []byte) bool {
 	return nullCount > 0 || float64(nonPrintable)/float64(checkSize) > 0.3
 }
 
-// defaultIgnores holds the default ignore patterns
+// default ignore patterns
 var defaultIgnores = []string{
 	".git",
 	".gitignore",

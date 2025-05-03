@@ -10,21 +10,18 @@ import (
 	"regexp"
 	"strings"
 
-	log "github.com/rs/zerolog/log"
+	"github.com/tanq16/ai-context/utils"
 )
 
-// TranscriptParams holds the parameters for the transcript request
 type TranscriptParams struct {
 	Params string `json:"params"`
 }
 
-// TranscriptSegment holds the transcript segment data
 type TranscriptSegment struct {
 	StartTime string `json:"startTime"`
 	Text      string `json:"text"`
 }
 
-// InnerTubeRequest holds the request data for the InnerTube API
 type InnerTubeRequest struct {
 	Context struct {
 		Client struct {
@@ -34,7 +31,6 @@ type InnerTubeRequest struct {
 	} `json:"context"`
 }
 
-// ExtractVideoID extracts video ID from various YouTube URL formats
 func ExtractVideoID(urlStr string) (string, error) {
 	if strings.Contains(urlStr, "youtu.be/") {
 		parts := strings.Split(urlStr, "/")
@@ -52,27 +48,26 @@ func ExtractVideoID(urlStr string) (string, error) {
 	return "", fmt.Errorf("could not extract video ID from URL")
 }
 
-// getTranscriptParams extracts transcript parameters from video data
-func getTranscriptParams(videoData map[string]interface{}) (string, error) {
-	panels, ok := videoData["engagementPanels"].([]interface{})
-	if !ok {
+func getTranscriptParams(videoData utils.Dictionary) (string, error) {
+	panels := videoData.UnwindSlice("engagementPanels")
+	if len(panels) == 0 {
 		return "", fmt.Errorf("no engagement panels found")
 	}
 	for _, panel := range panels {
-		if p, ok := panel.(map[string]interface{}); ok {
-			if section, ok := p["engagementPanelSectionListRenderer"].(map[string]interface{}); ok {
-				if section["panelIdentifier"] == "engagement-panel-searchable-transcript" {
-					if content, ok := section["content"].(map[string]interface{}); ok {
-						if renderer, ok := content["continuationItemRenderer"].(map[string]interface{}); ok {
-							if endpoint, ok := renderer["continuationEndpoint"].(map[string]interface{}); ok {
-								if transcriptEndpoint, ok := endpoint["getTranscriptEndpoint"].(map[string]interface{}); ok {
-									if params, ok := transcriptEndpoint["params"].(string); ok {
-										return params, nil
-									}
-								}
-							}
-						}
-					}
+		if p, ok := panel.(map[string]any); ok {
+			panelDict := utils.Dictionary(p)
+			panelIdentifier := panelDict.UnwindString("engagementPanelSectionListRenderer", "panelIdentifier")
+			if panelIdentifier == "engagement-panel-searchable-transcript" {
+				params := panelDict.UnwindString(
+					"engagementPanelSectionListRenderer",
+					"content",
+					"continuationItemRenderer",
+					"continuationEndpoint",
+					"getTranscriptEndpoint",
+					"params",
+				)
+				if params != "" {
+					return params, nil
 				}
 			}
 		}
@@ -80,54 +75,55 @@ func getTranscriptParams(videoData map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("transcript parameters not found")
 }
 
-// formatTranscriptSegments extracts and formats transcript segments
-func formatTranscriptSegments(transcriptData map[string]interface{}) ([]TranscriptSegment, error) {
+func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegment, error) {
 	var segments []TranscriptSegment
-	actions, ok := transcriptData["actions"].([]interface{})
-	if !ok || len(actions) == 0 {
+	actions := transcriptData.UnwindSlice("actions")
+	if len(actions) == 0 {
 		return nil, fmt.Errorf("no transcript actions found")
 	}
-	updateAction, ok := actions[0].(map[string]interface{})
-	if !ok {
+	if firstAction, ok := actions[0].(map[string]any); !ok {
 		return nil, fmt.Errorf("invalid action format")
-	}
-	panelAction, ok := updateAction["updateEngagementPanelAction"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid panel action")
-	}
-	content, ok := panelAction["content"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid content")
-	}
-
-	if renderer, ok := content["transcriptRenderer"].(map[string]interface{}); ok {
-		if body, ok := renderer["content"].(map[string]interface{}); ok {
-			if searchPanel, ok := body["transcriptSearchPanelRenderer"].(map[string]interface{}); ok {
-				if bodyContent, ok := searchPanel["body"].(map[string]interface{}); ok {
-					if segmentList, ok := bodyContent["transcriptSegmentListRenderer"].(map[string]interface{}); ok {
-						if initialSegments, ok := segmentList["initialSegments"].([]interface{}); ok {
-							for _, segment := range initialSegments {
-								if segRenderer, ok := segment.(map[string]interface{}); ok {
-									if renderer, ok := segRenderer["transcriptSegmentRenderer"].(map[string]interface{}); ok {
-										startTime := renderer["startTimeText"].(map[string]interface{})["simpleText"].(string)
-										text := renderer["snippet"].(map[string]interface{})["runs"].([]interface{})[0].(map[string]interface{})["text"].(string)
-										segments = append(segments, TranscriptSegment{
-											StartTime: startTime,
-											Text:      text,
-										})
-									}
-								}
-							}
-						}
+	} else {
+		actionDict := utils.Dictionary(firstAction)
+		initialSegments := actionDict.UnwindSlice(
+			"updateEngagementPanelAction",
+			"content",
+			"transcriptRenderer",
+			"content",
+			"transcriptSearchPanelRenderer",
+			"body",
+			"transcriptSegmentListRenderer",
+			"initialSegments",
+		)
+		if len(initialSegments) == 0 {
+			return nil, fmt.Errorf("no transcript segments found")
+		}
+		for _, segment := range initialSegments {
+			if segmentMap, ok := segment.(map[string]any); ok {
+				segmentDict := utils.Dictionary(segmentMap)
+				startTime := segmentDict.UnwindString("transcriptSegmentRenderer", "startTimeText", "simpleText")
+				runs := segmentDict.UnwindSlice("transcriptSegmentRenderer", "snippet", "runs")
+				if len(runs) == 0 {
+					continue
+				}
+				if firstRun, ok := runs[0].(map[string]any); ok {
+					text := utils.Dictionary(firstRun).UnwindString("text")
+					if startTime != "" && text != "" {
+						segments = append(segments, TranscriptSegment{
+							StartTime: startTime,
+							Text:      text,
+						})
 					}
 				}
 			}
 		}
 	}
+	if len(segments) == 0 {
+		return nil, fmt.Errorf("no transcript segments could be extracted")
+	}
 	return segments, nil
 }
 
-// DownloadTranscript downloads and formats transcript from a YouTube video URL
 func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	videoID, err := ExtractVideoID(videoURL)
 	if err != nil {
@@ -135,18 +131,16 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	}
 	// Extract the API key from the page
 	apiKey, err := extractInnertubeKey(videoID)
-	log.Debug().Str("apiKey", apiKey).Msg("extracted API key")
 	if err != nil {
-		// Fall back to default key if extraction fails
+		// Fall back to a default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-		log.Debug().Msg("falling back to publicly known Web Client API key")
 	}
 	// Create InnerTube request for video data
 	nextReq := InnerTubeRequest{}
 	nextReq.Context.Client.ClientName = "WEB"
 	nextReq.Context.Client.ClientVersion = "2.20240105.01.00"
 	// First request to get video data
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"videoId": videoID,
 		"context": nextReq.Context,
 	}
@@ -154,14 +148,12 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video data: %v", err)
 	}
-	log.Debug().Msg("got video data")
 	// Extract transcript parameters
 	params, err := getTranscriptParams(videoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript params: %v", err)
 	}
-	log.Debug().Str("params", params).Msg("got transcript params")
-	transcriptReq := map[string]interface{}{
+	transcriptReq := map[string]any{
 		"params":  params,
 		"context": nextReq.Context,
 	}
@@ -169,18 +161,15 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript: %v", err)
 	}
-	log.Debug().Msg("got transcript data")
 	// Format transcript segments
 	segments, err := formatTranscriptSegments(transcriptData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format transcript: %v", err)
 	}
-	log.Debug().Msg("formatted transcript")
 	return segments, nil
 }
 
-// makeInnerTubeRequest makes a request to the InnerTube API
-func makeInnerTubeRequest(endpoint string, reqBody interface{}, apiKey string) (map[string]interface{}, error) {
+func makeInnerTubeRequest(endpoint string, reqBody any, apiKey string) (map[string]any, error) {
 	baseURL := "https://www.youtube.com/youtubei/v1"
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
@@ -199,14 +188,13 @@ func makeInnerTubeRequest(endpoint string, reqBody interface{}, apiKey string) (
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-// extractInnertubeKey extracts the INNERTUBE_API_KEY from the video page
 func extractInnertubeKey(videoID string) (string, error) {
 	resp, err := http.Get("https://www.youtube.com/watch?v=" + videoID)
 	if err != nil {
