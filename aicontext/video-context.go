@@ -50,7 +50,7 @@ func ExtractVideoID(urlStr string) (string, error) {
 
 func getTranscriptParams(videoData utils.Dictionary) (string, error) {
 	panels := videoData.UnwindSlice("engagementPanels")
-	if panels == nil {
+	if len(panels) == 0 {
 		return "", fmt.Errorf("no engagement panels found")
 	}
 	for _, panel := range panels {
@@ -95,7 +95,7 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 			"transcriptSegmentListRenderer",
 			"initialSegments",
 		)
-		if initialSegments == nil {
+		if len(initialSegments) == 0 {
 			return nil, fmt.Errorf("no transcript segments found")
 		}
 		for _, segment := range initialSegments {
@@ -103,7 +103,7 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 				segmentDict := utils.Dictionary(segmentMap)
 				startTime := segmentDict.UnwindString("transcriptSegmentRenderer", "startTimeText", "simpleText")
 				runs := segmentDict.UnwindSlice("transcriptSegmentRenderer", "snippet", "runs")
-				if runs == nil {
+				if len(runs) == 0 {
 					continue
 				}
 				if firstRun, ok := runs[0].(map[string]any); ok {
@@ -118,7 +118,7 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 			}
 		}
 	}
-	if segments == nil {
+	if len(segments) == 0 {
 		return nil, fmt.Errorf("no transcript segments could be extracted")
 	}
 	return segments, nil

@@ -692,22 +692,22 @@ func (m *Manager) displayErrors() {
 func (m *Manager) ShowSummary() {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	fmt.Println()
-	var success, failures int
-	for _, info := range m.outputs {
-		if info.Status == "success" {
-			success++
-		} else if info.Status == "error" {
-			failures++
-		}
-	}
-	// totalOps := fmt.Sprintf("Total Operations: %d,", len(m.outputs))
-	succeeded := fmt.Sprintf("Completed %d of %d", success, len(m.outputs))
-	failed := fmt.Sprintf("Failed %d of %d", failures, len(m.outputs))
-	fmt.Println(strings.Repeat(" ", basePadding) + success2Style.Render(succeeded))
-	if failures > 0 {
-		fmt.Println(strings.Repeat(" ", basePadding) + errorStyle.Render(failed))
-	}
+	// fmt.Println()
+	// var success, failures int
+	// for _, info := range m.outputs {
+	// 	if info.Status == "success" {
+	// 		success++
+	// 	} else if info.Status == "error" {
+	// 		failures++
+	// 	}
+	// }
+	// // totalOps := fmt.Sprintf("Total Operations: %d,", len(m.outputs))
+	// succeeded := fmt.Sprintf("Completed %d of %d", success, len(m.outputs))
+	// failed := fmt.Sprintf("Failed %d of %d", failures, len(m.outputs))
+	// fmt.Println(strings.Repeat(" ", basePadding) + success2Style.Render(succeeded))
+	// if failures > 0 {
+	// 	fmt.Println(strings.Repeat(" ", basePadding) + errorStyle.Render(failed))
+	// }
 	m.displayErrors()
-	fmt.Println()
+	// fmt.Println()
 }
