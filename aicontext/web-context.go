@@ -15,7 +15,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-// ProcessWebContent converts a webpage to markdown and downloads associated images
 func ProcessWebContent(urlStr, outputPath string) error {
 	baseURL, err := url.Parse(urlStr)
 	if err != nil {
@@ -36,7 +35,6 @@ func ProcessWebContent(urlStr, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
-	// log.Debug().Msg("processing images")
 	err = processImages(doc, baseURL)
 	if err != nil {
 		return fmt.Errorf("failed to process images: %w", err)
@@ -59,7 +57,6 @@ func ProcessWebContent(urlStr, outputPath string) error {
 	return nil
 }
 
-// processImages downloads images and updates their src attributes
 func processImages(doc *html.Node, baseURL *url.URL) error {
 	var processNode func(*html.Node)
 	processNode = func(n *html.Node) {
@@ -68,7 +65,6 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 				if attr.Key == "src" {
 					imgURL, err := url.Parse(attr.Val)
 					if err != nil {
-						// log.Warn().Err(err).Str("url", attr.Val).Msg("failed to parse image URL")
 						continue
 					}
 					if !imgURL.IsAbs() {
@@ -81,7 +77,6 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 					localPath := path.Join("context", "images", filename)
 					err = downloadImage(imgURL.String(), localPath)
 					if err != nil {
-						// log.Warn().Err(err).Str("url", imgURL.String()).Msg("failed to download image")
 						continue
 					}
 					// make src point to local image
@@ -97,7 +92,6 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 	return nil
 }
 
-// downloadImage downloads an image from URL to the specified local path
 func downloadImage(imgURL string, localPath string) error {
 	resp, err := http.Get(imgURL)
 	if err != nil {
@@ -113,7 +107,6 @@ func downloadImage(imgURL string, localPath string) error {
 	return err
 }
 
-// renderNode renders an HTML node back to string
 func renderNode(n *html.Node) string {
 	var buf strings.Builder
 	err := html.Render(&buf, n)

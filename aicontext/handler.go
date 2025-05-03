@@ -49,11 +49,9 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		})
 		err := processor.ProcessGitHubURL(toProcess.url)
 		if err != nil {
-			// log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process GitHub URL")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		// log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed GtHub URL")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "dir":
 		output := path.Join("context", "dir-"+getOutFileName(toProcess.url))
@@ -63,17 +61,14 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		})
 		err := processor.ProcessDirectory(toProcess.url)
 		if err != nil {
-			// log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process directory")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		// log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed directory")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "yt":
 		segments, err := DownloadTranscript(toProcess.url)
 		output := path.Join("context", "yt-"+getOutFileName(toProcess.url))
 		if err != nil {
-			// log.Error().Err(err).Str("url", toProcess.url).Msg("failed to get transcript")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
@@ -83,21 +78,17 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 			content.WriteString(fmt.Sprintf("[%s] %s\n\n", segment.StartTime, segment.Text))
 		}
 		if err := os.WriteFile(output, []byte(content.String()), 0644); err != nil {
-			// log.Error().Err(err).Str("url", toProcess.url).Msg("failed to write transcript")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		// log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully generated transcript")
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "generic":
 		output := path.Join("context", "web-"+getOutFileName(toProcess.url))
 		err := ProcessWebContent(toProcess.url, output)
 		if err != nil {
-			// log.Error().Err(err).Str("url", toProcess.url).Msg("failed to process web content")
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
-		// log.Debug().Str("url", toProcess.url).Str("output", output).Msg("successfully processed web content")
 		resultChan <- result{url: toProcess.url, err: nil}
 	}
 }

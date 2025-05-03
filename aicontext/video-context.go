@@ -124,7 +124,6 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 	return segments, nil
 }
 
-// DownloadTranscript downloads and formats transcript from a YouTube video URL
 func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	videoID, err := ExtractVideoID(videoURL)
 	if err != nil {
@@ -132,11 +131,9 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	}
 	// Extract the API key from the page
 	apiKey, err := extractInnertubeKey(videoID)
-	// log.Debug().Str("apiKey", apiKey).Msg("extracted API key")
 	if err != nil {
 		// Fall back to a default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-		// log.Debug().Msg("falling back to publicly known Web Client API key")
 	}
 	// Create InnerTube request for video data
 	nextReq := InnerTubeRequest{}
@@ -151,13 +148,11 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video data: %v", err)
 	}
-	// log.Debug().Msg("got video data")
 	// Extract transcript parameters
 	params, err := getTranscriptParams(videoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript params: %v", err)
 	}
-	// log.Debug().Str("params", params).Msg("got transcript params")
 	transcriptReq := map[string]any{
 		"params":  params,
 		"context": nextReq.Context,
@@ -166,17 +161,14 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript: %v", err)
 	}
-	// log.Debug().Msg("got transcript data")
 	// Format transcript segments
 	segments, err := formatTranscriptSegments(transcriptData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format transcript: %v", err)
 	}
-	// log.Debug().Msg("formatted transcript")
 	return segments, nil
 }
 
-// makeInnerTubeRequest makes a request to the InnerTube API
 func makeInnerTubeRequest(endpoint string, reqBody any, apiKey string) (map[string]any, error) {
 	baseURL := "https://www.youtube.com/youtubei/v1"
 	jsonBody, err := json.Marshal(reqBody)
@@ -203,7 +195,6 @@ func makeInnerTubeRequest(endpoint string, reqBody any, apiKey string) (map[stri
 	return result, nil
 }
 
-// extractInnertubeKey extracts the INNERTUBE_API_KEY from the video page
 func extractInnertubeKey(videoID string) (string, error) {
 	resp, err := http.Get("https://www.youtube.com/watch?v=" + videoID)
 	if err != nil {
