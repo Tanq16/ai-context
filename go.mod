@@ -9,7 +9,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/net v0.31.0
-	golang.org/x/term v0.26.0
 )
 
 require (
