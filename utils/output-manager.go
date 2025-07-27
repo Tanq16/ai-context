@@ -10,20 +10,14 @@ import (
 )
 
 var (
-	// Core styles
-	successStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("37"))            // dark green
-	success2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))             // red
-	warningStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))            // yellow
-	pendingStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))            // blue
-	infoStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))            // cyan
-	debugStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))           // light grey
-	detailStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("13"))            // purple
-	streamStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))           // grey
-	headerStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("69")) // purple
-
-	// Additional config
-	basePadding = 2
+	successStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("37"))  // dark green
+	success2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))   // green
+	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))   // red
+	warningStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))  // yellow
+	pendingStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))  // blue
+	infoStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))  // cyan
+	debugStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("250")) // light grey
+	detailStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("13"))  // purple
 )
 
 var StyleSymbols = map[string]string{
@@ -59,39 +53,6 @@ func PrintDebug(text string) {
 func PrintDetail(text string) {
 	fmt.Println(detailStyle.Render(text))
 }
-func PrintStream(text string) {
-	fmt.Println(streamStyle.Render(text))
-}
-func PrintHeader(text string) {
-	fmt.Println(headerStyle.Render(text))
-}
-func FSuccess(text string) string {
-	return successStyle.Render(text)
-}
-func FSuccess2(text string) string {
-	return success2Style.Render(text)
-}
-func FError(text string) string {
-	return errorStyle.Render(text)
-}
-func FWarning(text string) string {
-	return warningStyle.Render(text)
-}
-func FInfo(text string) string {
-	return infoStyle.Render(text)
-}
-func FDebug(text string) string {
-	return debugStyle.Render(text)
-}
-func FDetail(text string) string {
-	return detailStyle.Render(text)
-}
-func FStream(text string) string {
-	return streamStyle.Render(text)
-}
-func FHeader(text string) string {
-	return headerStyle.Render(text)
-}
 
 // =========================================== ==============
 // =========================================== Output Manager
@@ -99,30 +60,22 @@ func FHeader(text string) string {
 
 // Output manager main structure
 type Manager struct {
-	status      string
-	message     string
-	progress    string
-	complete    bool
-	startTime   time.Time
-	lastUpdated time.Time
-	mutex       sync.RWMutex
-	err         error
-	doneCh      chan struct{}  // Channel to signal stopping the display
-	displayTick time.Duration  // Interval between display updates
-	displayWg   sync.WaitGroup // WaitGroup for display goroutine shutdown
+	status    string
+	message   string
+	progress  string
+	complete  bool
+	startTime time.Time
+	mutex     sync.RWMutex
+	err       error
+	doneCh    chan struct{}  // Channel to signal stopping the display
+	displayWg sync.WaitGroup // WaitGroup for display goroutine shutdown
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		status:      "pending",
-		message:     "",
-		progress:    "",
-		complete:    false,
-		startTime:   time.Now(),
-		lastUpdated: time.Now(),
-		err:         nil,
-		doneCh:      make(chan struct{}),
-		displayTick: 200 * time.Millisecond, // Default
+		status:    "pending",
+		startTime: time.Now(),
+		doneCh:    make(chan struct{}),
 	}
 }
 
@@ -130,10 +83,9 @@ func (m *Manager) SetMessage(message string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.message = message
-	m.lastUpdated = time.Now()
 }
 
-func (m *Manager) Complete(message string) {
+func (m *Manager) Complete(message string, err error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.progress = ""
@@ -143,27 +95,20 @@ func (m *Manager) Complete(message string) {
 		m.message = message
 	}
 	m.complete = true
-	m.status = "success"
-	m.lastUpdated = time.Now()
+	if err != nil {
+		m.status = "error"
+		m.err = err
+	} else {
+		m.status = "success"
+	}
 }
 
-func (m *Manager) ReportError(err error) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.complete = true
-	m.status = "error"
-	m.err = err
-	m.lastUpdated = time.Now()
-	m.err = err
-}
-
-func (m *Manager) AddProgressBarToStream(outof, final int64, text string) {
+func (m *Manager) ReportProgress(outof, final int64, text string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	progressBar := printProgressBar(max(0, outof), final, 30)
 	display := progressBar + debugStyle.Render(text)
 	m.progress = display
-	m.lastUpdated = time.Now()
 }
 
 func printProgressBar(current, total int64, width int) string {
@@ -181,8 +126,13 @@ func printProgressBar(current, total int64, width int) string {
 	return debugStyle.Render(fmt.Sprintf("%s %.1f%% %s ", bar, percent*100, StyleSymbols["bullet"]))
 }
 
-func (m *Manager) getStatusIndicator(status string) string {
-	switch status {
+func (m *Manager) StopDisplay() {
+	close(m.doneCh)
+	m.displayWg.Wait() // Wait for goroutine to finish
+}
+
+func (m *Manager) getStatusIndicator() string {
+	switch m.status {
 	case "success", "pass":
 		return successStyle.Render(StyleSymbols["pass"])
 	case "error", "fail":
@@ -196,52 +146,36 @@ func (m *Manager) getStatusIndicator(status string) string {
 	}
 }
 
+func (m *Manager) getStyledMessage() string {
+	var styledMessage string
+	switch m.status {
+	case "success":
+		styledMessage = successStyle.Render(m.message)
+	case "error":
+		styledMessage = errorStyle.Render(m.message)
+	case "warning":
+		styledMessage = warningStyle.Render(m.message)
+	default: // pending or unknown
+		styledMessage = pendingStyle.Render(m.message)
+	}
+	return styledMessage
+}
+
 func (m *Manager) updateDisplay() {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	fmt.Printf("\033[2A\033[J") // clear 2 lines
-
 	if !m.complete && m.status == "pending" && m.message == "" {
-		statusDisplay := m.getStatusIndicator(m.status)
-		fmt.Printf("%s%s %s\n", strings.Repeat(" ", basePadding), statusDisplay, pendingStyle.Render("Waiting..."))
-		indent := strings.Repeat(" ", basePadding+4)
-		fmt.Printf("%s%s\n", indent, streamStyle.Render(m.progress))
-	} else if m.complete {
-		statusDisplay := m.getStatusIndicator(m.status)
-		totalTime := m.lastUpdated.Sub(m.startTime).Round(time.Second)
-		timeStr := totalTime.String()
-		var styledMessage string
-		switch m.status {
-		case "success":
-			styledMessage = successStyle.Render(m.message)
-		case "error":
-			styledMessage = errorStyle.Render(m.message)
-		case "warning":
-			styledMessage = warningStyle.Render(m.message)
-		default: // pending or other
-			styledMessage = pendingStyle.Render(m.message)
-		}
-		fmt.Printf("%s%s %s %s\n\n", strings.Repeat(" ", basePadding), statusDisplay, debugStyle.Render(timeStr), styledMessage)
+		// case of unprocessed jobs
+		statusDisplay := m.getStatusIndicator()
+		fmt.Printf("  %s %s\n", statusDisplay, pendingStyle.Render("Waiting..."))
+		fmt.Printf("      %s\n", debugStyle.Render(m.progress))
 	} else {
-		statusDisplay := m.getStatusIndicator(m.status)
-		elapsed := time.Since(m.startTime).Round(time.Second)
-		if m.complete {
-			elapsed = m.lastUpdated.Sub(m.startTime).Round(time.Second)
-		}
-		elapsedStr := elapsed.String()
-		var styledMessage string
-		switch m.status {
-		case "success":
-			styledMessage = successStyle.Render(m.message)
-		case "error":
-			styledMessage = errorStyle.Render(m.message)
-		case "warning":
-			styledMessage = warningStyle.Render(m.message)
-		default: // pending or other
-			styledMessage = pendingStyle.Render(m.message)
-		}
-		fmt.Printf("%s%s %s %s\n", strings.Repeat(" ", basePadding), statusDisplay, debugStyle.Render(elapsedStr), styledMessage)
-		fmt.Printf("%s%s\n", strings.Repeat(" ", basePadding+4), streamStyle.Render(m.progress))
+		statusDisplay := m.getStatusIndicator()
+		totalTime := time.Since(m.startTime).Round(time.Second)
+		elapsedStr := totalTime.String()
+		fmt.Printf("  %s %s %s\n", statusDisplay, debugStyle.Render(elapsedStr), m.getStyledMessage())
+		fmt.Printf("      %s\n", debugStyle.Render(m.progress))
 	}
 }
 
@@ -249,7 +183,7 @@ func (m *Manager) StartDisplay() {
 	m.displayWg.Add(1)
 	go func() {
 		defer m.displayWg.Done()
-		ticker := time.NewTicker(m.displayTick)
+		ticker := time.NewTicker(200 * time.Millisecond)
 		defer ticker.Stop()
 		fmt.Print("\n\n\n")
 		m.updateDisplay() // update at start and print 2 extra lines for compensation
@@ -260,28 +194,19 @@ func (m *Manager) StartDisplay() {
 			case <-m.doneCh:
 				m.progress = ""
 				m.updateDisplay()
-				m.ShowSummary()
+				m.checkAndShowError()
 				return
 			}
 		}
 	}()
 }
 
-func (m *Manager) StopDisplay() {
-	close(m.doneCh)
-	m.displayWg.Wait() // Wait for goroutine to finish
-}
-
-func (m *Manager) displayError() {
+func (m *Manager) checkAndShowError() {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	if m.err == nil {
 		return
 	}
-	fmt.Println(strings.Repeat(" ", basePadding) + errorStyle.Bold(true).Render("Encountered Error:"))
-	fmt.Printf("%s%s\n", strings.Repeat(" ", basePadding+2), debugStyle.Render(fmt.Sprintf("%s", m.err)))
-}
-
-func (m *Manager) ShowSummary() {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	m.displayError()
+	fmt.Println("  " + errorStyle.Bold(true).Render("Encountered Errors:"))
+	fmt.Printf("    %s\n", debugStyle.Render(fmt.Sprintf("%s", m.err)))
 }

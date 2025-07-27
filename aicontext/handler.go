@@ -101,11 +101,11 @@ func Handler(urls []string, ignoreList []string, threads int) {
 
 	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
-		outputMgr.ReportError(fmt.Errorf("couldn't create context directory: %w", err))
+		outputMgr.Complete("", fmt.Errorf("couldn't create context directory: %w", err))
 		return
 	}
 	if err := os.MkdirAll(path.Join("context", "images"), 0755); err != nil {
-		outputMgr.ReportError(fmt.Errorf("couldn't create images directory: %w", err))
+		outputMgr.Complete("", fmt.Errorf("couldn't create images directory: %w", err))
 		return
 	}
 	totUrls := len(urls)
@@ -127,7 +127,7 @@ func Handler(urls []string, ignoreList []string, threads int) {
 		totCompleted := int64(0)
 		for completed := range progressChan {
 			totCompleted += completed
-			outputMgr.AddProgressBarToStream(totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
+			outputMgr.ReportProgress(totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
 		}
 	}(int64(totUrls))
 
@@ -218,8 +218,8 @@ func Handler(urls []string, ignoreList []string, threads int) {
 	}
 	// Complete output manager
 	if errMsg != "" {
-		outputMgr.ReportError(fmt.Errorf("%s", errMsg))
+		outputMgr.Complete("", fmt.Errorf("%s", errMsg))
 	} else {
-		outputMgr.Complete("All operations completed")
+		outputMgr.Complete("All operations completed", nil)
 	}
 }
