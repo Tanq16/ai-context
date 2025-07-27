@@ -11,7 +11,7 @@ import (
 	"github.com/tanq16/ai-context/utils"
 )
 
-var urlRegex = map[string]string{
+var URLRegex = map[string]string{
 	"gh":  "https://github.com/.+",
 	"yt":  "https://youtu.be/.+",
 	"yt1": "https://www.youtube.com/watch\\?v=.+",
@@ -29,7 +29,7 @@ type input struct {
 	urlType string
 }
 
-func getOutFileName(input string) string {
+func GetOutFileName(input string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	reReplace := regexp.MustCompile(`https?_|www_|youtube_com_|github_com_|watch_v_|__`)
 	res := strings.ToLower(re.ReplaceAllString(input, "_"))
@@ -42,24 +42,24 @@ func getOutFileName(input string) string {
 func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
 	switch toProcess.urlType {
 	case "gh":
-		output := path.Join("context", "gh-"+getOutFileName(toProcess.url))
-		processor := NewProcessor(ProcessorConfig{
+		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
+		codeProcessor := NewProcessor(ProcessorConfig{
 			OutputPath:        output,
 			AdditionalIgnores: ignoreList,
 		})
-		err := processor.ProcessGitHubURL(toProcess.url)
+		err := codeProcessor.ProcessGitHubURL(toProcess.url)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
 			return
 		}
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "dir":
-		output := path.Join("context", "dir-"+getOutFileName(toProcess.url))
-		processor := NewProcessor(ProcessorConfig{
+		output := path.Join("context", "dir-"+GetOutFileName(toProcess.url))
+		codeProcessor := NewProcessor(ProcessorConfig{
 			OutputPath:        output,
 			AdditionalIgnores: ignoreList,
 		})
-		err := processor.ProcessDirectory(toProcess.url)
+		err := codeProcessor.ProcessDirectory(toProcess.url)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
 			return
@@ -67,7 +67,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "yt":
 		segments, err := DownloadTranscript(toProcess.url)
-		output := path.Join("context", "yt-"+getOutFileName(toProcess.url))
+		output := path.Join("context", "yt-"+GetOutFileName(toProcess.url))
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
 			return
@@ -83,7 +83,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 		}
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "generic":
-		output := path.Join("context", "web-"+getOutFileName(toProcess.url))
+		output := path.Join("context", "web-"+GetOutFileName(toProcess.url))
 		err := ProcessWebContent(toProcess.url, output)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
@@ -172,7 +172,7 @@ func Handler(urls []string, ignoreList []string, threads int) {
 		defer close(inputURLChan)
 		for _, u := range urls {
 			matched := false
-			for ut, reg := range urlRegex {
+			for ut, reg := range URLRegex {
 				if isMatch, _ := regexp.MatchString(reg, u); isMatch {
 					if ut == "yt" || ut == "yt1" || ut == "yt2" {
 						inputURLChan <- input{url: u, urlType: "yt"}
