@@ -126,28 +126,11 @@ func NewManager() *Manager {
 	}
 }
 
-func (m *Manager) SetUpdateInterval(interval time.Duration) {
-	m.displayTick = interval
-}
-
 func (m *Manager) SetMessage(message string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.message = message
 	m.lastUpdated = time.Now()
-}
-
-func (m *Manager) SetStatus(status string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.status = status
-	m.lastUpdated = time.Now()
-}
-
-func (m *Manager) GetStatus() string {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.status
 }
 
 func (m *Manager) Complete(message string) {
@@ -177,13 +160,13 @@ func (m *Manager) ReportError(err error) {
 func (m *Manager) AddProgressBarToStream(outof, final int64, text string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	progressBar := PrintProgressBar(max(0, outof), final, 30)
+	progressBar := printProgressBar(max(0, outof), final, 30)
 	display := progressBar + debugStyle.Render(text)
 	m.progress = display
 	m.lastUpdated = time.Now()
 }
 
-func PrintProgressBar(current, total int64, width int) string {
+func printProgressBar(current, total int64, width int) string {
 	if width <= 0 {
 		width = 30
 	}
@@ -198,13 +181,7 @@ func PrintProgressBar(current, total int64, width int) string {
 	return debugStyle.Render(fmt.Sprintf("%s %.1f%% %s ", bar, percent*100, StyleSymbols["bullet"]))
 }
 
-func (m *Manager) ClearAll() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.progress = ""
-}
-
-func (m *Manager) GetStatusIndicator(status string) string {
+func (m *Manager) getStatusIndicator(status string) string {
 	switch status {
 	case "success", "pass":
 		return successStyle.Render(StyleSymbols["pass"])
@@ -225,16 +202,14 @@ func (m *Manager) updateDisplay() {
 	fmt.Printf("\033[2A\033[J") // clear 2 lines
 
 	if !m.complete && m.status == "pending" && m.message == "" {
-		statusDisplay := m.GetStatusIndicator(m.status)
+		statusDisplay := m.getStatusIndicator(m.status)
 		fmt.Printf("%s%s %s\n", strings.Repeat(" ", basePadding), statusDisplay, pendingStyle.Render("Waiting..."))
 		indent := strings.Repeat(" ", basePadding+4)
 		fmt.Printf("%s%s\n", indent, streamStyle.Render(m.progress))
 	} else if m.complete {
-		statusDisplay := m.GetStatusIndicator(m.status)
+		statusDisplay := m.getStatusIndicator(m.status)
 		totalTime := m.lastUpdated.Sub(m.startTime).Round(time.Second)
 		timeStr := totalTime.String()
-
-		// Style message based on status
 		var styledMessage string
 		switch m.status {
 		case "success":
@@ -248,14 +223,12 @@ func (m *Manager) updateDisplay() {
 		}
 		fmt.Printf("%s%s %s %s\n\n", strings.Repeat(" ", basePadding), statusDisplay, debugStyle.Render(timeStr), styledMessage)
 	} else {
-		statusDisplay := m.GetStatusIndicator(m.status)
+		statusDisplay := m.getStatusIndicator(m.status)
 		elapsed := time.Since(m.startTime).Round(time.Second)
 		if m.complete {
 			elapsed = m.lastUpdated.Sub(m.startTime).Round(time.Second)
 		}
 		elapsedStr := elapsed.String()
-
-		// Style the message based on status
 		var styledMessage string
 		switch m.status {
 		case "success":
@@ -268,28 +241,24 @@ func (m *Manager) updateDisplay() {
 			styledMessage = pendingStyle.Render(m.message)
 		}
 		fmt.Printf("%s%s %s %s\n", strings.Repeat(" ", basePadding), statusDisplay, debugStyle.Render(elapsedStr), styledMessage)
-
-		// Print stream lines with indentation
-		indent := strings.Repeat(" ", basePadding+4) // Additional indentation for stream output
-		fmt.Printf("%s%s\n", indent, streamStyle.Render(m.progress))
+		fmt.Printf("%s%s\n", strings.Repeat(" ", basePadding+4), streamStyle.Render(m.progress))
 	}
 }
 
 func (m *Manager) StartDisplay() {
-	fmt.Println()
 	m.displayWg.Add(1)
 	go func() {
 		defer m.displayWg.Done()
 		ticker := time.NewTicker(m.displayTick)
 		defer ticker.Stop()
-		fmt.Print("\n\n")
-		m.updateDisplay() // update at start and print 2 lines for compensation
+		fmt.Print("\n\n\n")
+		m.updateDisplay() // update at start and print 2 extra lines for compensation
 		for {
 			select {
 			case <-ticker.C:
 				m.updateDisplay()
 			case <-m.doneCh:
-				m.ClearAll()
+				m.progress = ""
 				m.updateDisplay()
 				m.ShowSummary()
 				return
@@ -307,12 +276,8 @@ func (m *Manager) displayError() {
 	if m.err == nil {
 		return
 	}
-	fmt.Println()
 	fmt.Println(strings.Repeat(" ", basePadding) + errorStyle.Bold(true).Render("Encountered Error:"))
-	fmt.Printf("%s%s\n",
-		strings.Repeat(" ", basePadding+2),
-		debugStyle.Render(fmt.Sprintf("%s", m.err)),
-	)
+	fmt.Printf("%s%s\n", strings.Repeat(" ", basePadding+2), debugStyle.Render(fmt.Sprintf("%s", m.err)))
 }
 
 func (m *Manager) ShowSummary() {
