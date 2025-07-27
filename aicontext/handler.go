@@ -94,19 +94,18 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 }
 
 func Handler(urls []string, ignoreList []string, threads int) {
-	outputMgr := utils.NewManager(0)
+	outputMgr := utils.NewManager()
 	outputMgr.StartDisplay()
 	defer outputMgr.StopDisplay()
-	funcId := outputMgr.Register("AI Context")
-	outputMgr.SetMessage(funcId, "Creating file structure")
+	outputMgr.SetMessage("Creating file structure")
 
 	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
-		outputMgr.ReportError(funcId, fmt.Errorf("couldn't create context directory: %w", err))
+		outputMgr.ReportError(fmt.Errorf("couldn't create context directory: %w", err))
 		return
 	}
 	if err := os.MkdirAll(path.Join("context", "images"), 0755); err != nil {
-		outputMgr.ReportError(funcId, fmt.Errorf("couldn't create images directory: %w", err))
+		outputMgr.ReportError(fmt.Errorf("couldn't create images directory: %w", err))
 		return
 	}
 	totUrls := len(urls)
@@ -114,7 +113,7 @@ func Handler(urls []string, ignoreList []string, threads int) {
 	if totUrls == 1 {
 		pluralS = ""
 	}
-	outputMgr.SetMessage(funcId, fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
+	outputMgr.SetMessage(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
 
 	inputURLChan := make(chan input)
 	resultChan := make(chan result)
@@ -128,7 +127,7 @@ func Handler(urls []string, ignoreList []string, threads int) {
 		totCompleted := int64(0)
 		for completed := range progressChan {
 			totCompleted += completed
-			outputMgr.AddProgressBarToStream(funcId, totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
+			outputMgr.AddProgressBarToStream(totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
 		}
 	}(int64(totUrls))
 
@@ -208,19 +207,19 @@ func Handler(urls []string, ignoreList []string, threads int) {
 	// Remove images directory if it's empty
 	files, err := os.ReadDir(path.Join("context", "images"))
 	if err != nil {
-		outputMgr.SetMessage(funcId, "Operations Completed, error in cleanup")
+		outputMgr.SetMessage("Operations Completed, error in cleanup")
 		errMsg += (fmt.Errorf("couldn't read images directory: %w", err)).Error() + "\n"
 	} else if len(files) == 0 {
 		err := os.RemoveAll(path.Join("context", "images"))
 		if err != nil {
-			outputMgr.SetMessage(funcId, "Operations Completed, error in cleanup")
+			outputMgr.SetMessage("Operations Completed, error in cleanup")
 			errMsg += (fmt.Errorf("failed to delete empty images directory: %w", err)).Error() + "\n"
 		}
 	}
 	// Complete output manager
 	if errMsg != "" {
-		outputMgr.ReportError(funcId, fmt.Errorf("%s", errMsg))
+		outputMgr.ReportError(fmt.Errorf("%s", errMsg))
 	} else {
-		outputMgr.Complete(funcId, "All operations completed")
+		outputMgr.Complete("All operations completed")
 	}
 }
