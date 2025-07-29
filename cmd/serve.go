@@ -33,16 +33,15 @@ type generateResponse struct {
 }
 
 func runServer(cmd *cobra.Command, args []string) {
-	staticFS, err := fs.Sub(webFS, "web")
+	webContentFS, err := fs.Sub(webFS, "web")
 	if err != nil {
-		log.Fatalf("Failed to create static file system: %v", err)
+		log.Fatalf("Failed to create web content file system: %v", err)
 	}
-
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	http.Handle("/static/", http.FileServer(http.FS(webContentFS)))
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/load", loadHandler)
-	http.HandleFunc("/clear", clearHandler) // Add the new /clear route
-	http.HandleFunc("/", rootHandler(staticFS))
+	http.HandleFunc("/clear", clearHandler)
+	http.HandleFunc("/", rootHandler(webContentFS))
 
 	port := "8080"
 	fmt.Printf("Starting server at http://localhost:%s\n", port)
@@ -53,35 +52,32 @@ func runServer(cmd *cobra.Command, args []string) {
 
 func rootHandler(fs fs.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.FileServer(http.FS(fs)).ServeHTTP(w, r)
+		if r.URL.Path == "/" {
+			indexHTML, err := webFS.ReadFile("web/index.html")
+			if err != nil {
+				http.Error(w, "Could not read index.html", http.StatusInternalServerError)
+				log.Printf("Error reading embedded index.html: %v", err)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(indexHTML)
 			return
 		}
-		indexHTML, err := webFS.ReadFile("web/index.html")
-		if err != nil {
-			http.Error(w, "Could not read index.html", http.StatusInternalServerError)
-			log.Printf("Error reading embedded index.html: %v", err)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(indexHTML)
+		http.FileServer(http.FS(fs)).ServeHTTP(w, r)
 	}
 }
 
-// clearHandler handles the request to delete the generated context file.
 func clearHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	if err := cleanupContextDir(); err != nil {
 		log.Printf("Error during cleanup: %v", err)
 		http.Error(w, "Failed to clear context file", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusNoContent) // Success, no content to return
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func loadHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,20 +85,18 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	outputFile, err := findGeneratedFile()
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(generateResponse{Content: ""})
 		return
 	}
-
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		http.Error(w, "Failed to read context file", http.StatusInternalServerError)
 		log.Printf("Error reading output file %s: %v", outputFile, err)
 		return
 	}
-
 	resp := generateResponse{Content: string(content)}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -113,7 +107,6 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	var req generateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -123,27 +116,22 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "URL is required", http.StatusBadRequest)
 		return
 	}
-
 	if err := cleanupContextDir(); err != nil {
 		log.Printf("Warning: could not clean up context directory: %v", err)
 	}
-
 	aicontext.Handler([]string{req.URL}, req.Ignore, 1)
-
 	outputFile, err := findGeneratedFile()
 	if err != nil {
 		http.Error(w, "Failed to find generated context file", http.StatusInternalServerError)
 		log.Printf("Error finding generated file: %v", err)
 		return
 	}
-
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		http.Error(w, "Failed to read context file", http.StatusInternalServerError)
 		log.Printf("Error reading output file %s: %v", outputFile, err)
 		return
 	}
-
 	resp := generateResponse{Content: string(content)}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -160,6 +148,12 @@ func cleanupContextDir() error {
 	for _, file := range files {
 		if err := os.Remove(file); err != nil {
 			log.Printf("Failed to remove file %s: %v", file, err)
+		}
+	}
+	imgPath := filepath.Join(dir, "images")
+	if _, err := os.Stat(imgPath); err == nil {
+		if files, _ := os.ReadDir(imgPath); len(files) == 0 {
+			os.Remove(imgPath)
 		}
 	}
 	return nil
