@@ -31,10 +31,10 @@ type input struct {
 
 func GetOutFileName(input string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
-	reReplace := regexp.MustCompile(`https?_|www_|youtube_com_|github_com_|watch_v_|__`)
+	reReplace := regexp.MustCompile(`https?_|www_|youtube_com_|github_com_|watch_v_|__|com_`)
 	res := strings.ToLower(re.ReplaceAllString(input, "_"))
 	res = reReplace.ReplaceAllString(res, "")
-	res = strings.TrimPrefix(res, "_")
+	res = strings.Trim(res, "_")
 	// return res + "-" + time.Now().Format("150405") + ".md"
 	return res + ".md"
 }

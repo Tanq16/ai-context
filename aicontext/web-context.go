@@ -15,6 +15,20 @@ import (
 	"golang.org/x/net/html"
 )
 
+var ignoreHTMLTags = map[string]bool{
+	"script":   true,
+	"style":    true,
+	"noscript": true,
+	"header":   true,
+	"footer":   true,
+	"aside":    true,
+	"nav":      true,
+	"form":     true,
+	"iframe":   true,
+}
+
+var ignoerAttributes = regexp.MustCompile(`(?i)comment|meta|footer|footnote|masthead|media|related|shoutbox|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter|social|nav|header|menu|authors|newsletter`)
+
 func ProcessWebContent(urlStr, outputPath string) error {
 	baseURL, err := url.Parse(urlStr)
 	if err != nil {
@@ -30,31 +44,71 @@ func ProcessWebContent(urlStr, outputPath string) error {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// parse HTML
 	doc, err := html.Parse(strings.NewReader(string(content)))
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
-	err = processImages(doc, baseURL)
-	if err != nil {
-		return fmt.Errorf("failed to process images: %w", err)
-	}
-
-	// convert to markdown
+	cleanHTML(doc)
+	_ = processImages(doc, baseURL) // ignore errors
 	markdown, err := htmltomarkdown.ConvertString(renderNode(doc))
 	if err != nil {
 		return fmt.Errorf("failed to convert to markdown: %w", err)
 	}
-	re := regexp.MustCompile(`\[!\[(.*?)\]\((.*?)\)\]\(.*?\)`)
-	markdown = re.ReplaceAllString(markdown, "![$1]($2)")
-	final := fmt.Sprintf("# Webpage Context: %s\n\nSource: %s\n\n%s", baseURL.Host, urlStr, markdown)
-
-	// write output
+	// double wrap
+	// re := regexp.MustCompile(`\[!\[(.*?)\]\((.*?)\)\]\(.*?\)`)
+	// markdown = re.ReplaceAllString(markdown, "![$1]($2)")
+	title := findTitle(doc)
+	if title == "" {
+		title = baseURL.Host
+	}
+	final := fmt.Sprintf("# Webpage Context: %s\n\nSource: %s\n\n%s", title, urlStr, markdown)
 	err = os.WriteFile(outputPath, []byte(final), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 	return nil
+}
+
+func cleanHTML(n *html.Node) {
+	var next *html.Node
+	for c := n.FirstChild; c != nil; c = next {
+		next = c.NextSibling
+		if ignoreHTMLTags[c.Data] {
+			n.RemoveChild(c)
+			continue
+		}
+		if c.Type == html.ElementNode {
+			shouldRemove := false
+			for _, attr := range c.Attr {
+				if attr.Key == "id" || attr.Key == "class" {
+					if ignoerAttributes.MatchString(attr.Val) {
+						shouldRemove = true
+						break
+					}
+				}
+			}
+			if shouldRemove {
+				n.RemoveChild(c)
+				continue
+			}
+		}
+		// recursive for node that wasn't cleaned
+		cleanHTML(c)
+	}
+}
+
+func findTitle(n *html.Node) string {
+	if n.Type == html.ElementNode && n.Data == "title" {
+		if n.FirstChild != nil {
+			return strings.TrimSpace(n.FirstChild.Data)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if title := findTitle(c); title != "" {
+			return title
+		}
+	}
+	return ""
 }
 
 func processImages(doc *html.Node, baseURL *url.URL) error {
@@ -73,14 +127,17 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 
 					// Download image and name it a uuid
 					ext := path.Ext(imgURL.Path)
+					if ext == "" {
+						ext = ".jpg" // default extension
+					}
 					filename := uuid.New().String() + ext
 					localPath := path.Join("context", "images", filename)
 					err = downloadImage(imgURL.String(), localPath)
 					if err != nil {
-						continue
+						continue // just skip image
 					}
 					// make src point to local image
-					n.Attr[i].Val = path.Join("images", filename)
+					n.Attr[i].Val = path.Join(".", "images", filename)
 				}
 			}
 		}
@@ -98,6 +155,9 @@ func downloadImage(imgURL string, localPath string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
 	out, err := os.Create(localPath)
 	if err != nil {
 		return err
