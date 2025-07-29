@@ -2,6 +2,7 @@ package aicontext
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -37,6 +38,22 @@ func GetOutFileName(input string) string {
 	res = strings.Trim(res, "_")
 	// return res + "-" + time.Now().Format("150405") + ".md"
 	return res + ".md"
+}
+
+func cleanURL(rawURL string) (string, error) {
+	if after, ok := strings.CutPrefix(rawURL, "github/"); ok {
+		rawURL = "https://github.com/" + after
+	}
+	if match, _ := regexp.MatchString(URLRegex["dir"], rawURL); match {
+		return rawURL, nil
+	}
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse url: %w", err)
+	}
+	parsedURL.RawQuery = ""
+	parsedURL.Fragment = ""
+	return parsedURL.String(), nil
 }
 
 func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
@@ -94,6 +111,17 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 }
 
 func Handler(urls []string, ignoreList []string, threads int) {
+	// Pre-filter URLs
+	var cleanedUrls []string
+	for _, u := range urls {
+		cleaned, err := cleanURL(u)
+		if err != nil {
+			continue
+		}
+		cleanedUrls = append(cleanedUrls, cleaned)
+	}
+	urls = cleanedUrls
+
 	outputMgr := utils.NewManager()
 	outputMgr.StartDisplay()
 	defer outputMgr.StopDisplay()
