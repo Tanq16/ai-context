@@ -36,7 +36,6 @@ func GetOutFileName(input string) string {
 	res := strings.ToLower(re.ReplaceAllString(input, "_"))
 	res = reReplace.ReplaceAllString(res, "")
 	res = strings.Trim(res, "_")
-	// return res + "-" + time.Now().Format("150405") + ".md"
 	return res + ".md"
 }
 
@@ -44,14 +43,26 @@ func cleanURL(rawURL string) (string, error) {
 	if after, ok := strings.CutPrefix(rawURL, "github/"); ok {
 		rawURL = "https://github.com/" + after
 	}
-	if match, _ := regexp.MatchString(URLRegex["dir"], rawURL); match {
+	if match, _ := regexp.MatchString(`^\.?\.?\/.*`, rawURL); match {
 		return rawURL, nil
 	}
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %w", err)
 	}
-	parsedURL.RawQuery = ""
+	// preserve video id for yt
+	if strings.Contains(parsedURL.Host, "youtube.com") {
+		videoID := parsedURL.Query().Get("v")
+		if videoID != "" {
+			query := url.Values{}
+			query.Set("v", videoID)
+			parsedURL.RawQuery = query.Encode()
+		} else {
+			parsedURL.RawQuery = ""
+		}
+	} else {
+		parsedURL.RawQuery = ""
+	}
 	parsedURL.Fragment = ""
 	return parsedURL.String(), nil
 }
