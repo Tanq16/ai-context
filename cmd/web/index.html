@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Context</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        :root {
+            --crust: #11111b;
+            --mantle: #181825;
+            --base: #1e1e2e;
+            --surface0: #313244;
+            --surface1: #45475a;
+            --overlay2: #9399b2;
+            --text: #cdd6f4;
+            --subtext0: #a6adc8;
+            --peach: #fab387;
+            --lavender: #b4befe;
+            --teal: #94e2d5;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--crust);
+            color: var(--text);
+        }
+        /* scrollbar styles */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--base); }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--surface1);
+            border-radius: 10px;
+            border: 2px solid var(--base);
+        }
+        ::-webkit-scrollbar-thumb:hover { background-color: var(--overlay2); }
+        ::placeholder { color: var(--subtext0); opacity: 0.7; }
+
+        .input-underline {
+            background-color: transparent;
+            border: none;
+            border-bottom: 2px solid var(--surface0);
+            border-radius: 0;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+            transition: border-color 0.3s;
+        }
+        .input-underline:focus {
+            outline: none;
+            border-bottom-color: var(--peach);
+            box-shadow: none;
+            --tw-ring-shadow: none;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="p-2 sm:p-4">
+
+    <main id="main-container" class="w-full max-w-4xl mx-auto flex flex-col gap-4 h-full">
+        <!-- Header -->
+        <header class="flex items-center justify-center gap-6 flex-shrink-0">
+            <img src="/static/logo.png" alt="AI Context Logo" class="w-16 h-16 sm:w-20 sm:h-20">
+            <h1 class="text-4xl sm:text-5xl font-bold text-[var(--peach)]">AI Context</h1>
+        </header>
+
+        <!-- Input Section -->
+        <div class="flex flex-col gap-4 flex-shrink-0">
+             <input type="text" id="url-input"
+                   class="w-full py-1 text-lg input-underline"
+                   placeholder="Paste a URL and press Enter...">
+            <input type="text" id="ignore-input"
+                   class="w-full py-1 text-base input-underline"
+                   placeholder="Ignore patterns (optional): e.g., tests,*.log">
+        </div>
+       
+        <!-- Output & Placeholder -->
+        <div id="output-section" class="mt-4 flex-grow min-h-0">
+            <!-- This container will hold either the placeholder or the result -->
+        </div>
+    </main>
+
+    <!-- HTML Templates -->
+    <template id="placeholder-template">
+        <div id="placeholder-container" class="text-center py-5 border-2 border-dashed border-[var(--surface0)] rounded-2xl h-full flex items-center justify-center">
+            <p class="text-[var(--overlay2)]">Waiting for a URL to process...</p>
+        </div>
+    </template>
+
+    <template id="loading-template">
+        <div id="loading-container" class="text-center py-10 border-2 border-dashed border-[var(--surface0)] rounded-2xl h-full flex flex-col items-center justify-center gap-4">
+            <i class="fa-solid fa-spinner fa-spin text-3xl text-[var(--peach)]"></i>
+            <p class="text-[var(--overlay2)]">Generating context, please wait...</p>
+        </div>
+    </template>
+
+    <template id="output-template">
+        <div id="output-container" class="bg-[var(--mantle)] rounded-2xl shadow-2xl flex flex-col h-full">
+            <div class="flex-shrink-0 p-1 bg-opacity-50 bg-[var(--base)] rounded-t-2xl flex justify-end items-center">
+                <div class="flex gap-4 pr-2 text-xl text-[var(--subtext0)]">
+                    <button id="copy-btn" title="Copy" class="hover:text-[var(--teal)] transition-colors"><i class="fa-solid fa-copy"></i></button>
+                    <button id="clear-btn" title="Clear" class="hover:text-[var(--lavender)] transition-colors"><i class="fa-solid fa-xmark-circle"></i></button>
+                </div>
+            </div>
+            <pre class="flex-grow p-4 sm:p-6 text-sm overflow-auto"><code id="generated-code" class="language-markdown"></code></pre>
+        </div>
+    </template>
+
+    <script>
+        // DOM element references
+        const urlInput = document.getElementById('url-input');
+        const ignoreInput = document.getElementById('ignore-input');
+        const outputSection = document.getElementById('output-section');
+
+        // Template references
+        const placeholderTemplate = document.getElementById('placeholder-template');
+        const loadingTemplate = document.getElementById('loading-template');
+        const outputTemplate = document.getElementById('output-template');
+        const showPlaceholder = () => {
+            outputSection.innerHTML = '';
+            outputSection.appendChild(placeholderTemplate.content.cloneNode(true));
+        };
+        const showLoadingState = () => {
+            outputSection.innerHTML = '';
+            outputSection.appendChild(loadingTemplate.content.cloneNode(true));
+        };
+        const showOutputContainer = (content) => {
+            outputSection.innerHTML = '';
+            const outputClone = outputTemplate.content.cloneNode(true);
+            const codeElement = outputClone.querySelector('#generated-code');
+            const copyBtn = outputClone.querySelector('#copy-btn');
+            const clearBtn = outputClone.querySelector('#clear-btn');
+            const sanitizedContent = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            codeElement.innerHTML = sanitizedContent;
+            copyBtn.addEventListener('click', () => handleCopy(content));
+            clearBtn.addEventListener('click', handleClear);
+            outputSection.appendChild(outputClone);
+        };
+        
+        const handleGeneration = async () => {
+            const url = urlInput.value.trim();
+            if (!url) return;
+            showLoadingState();
+            const ignorePatterns = ignoreInput.value.trim().split(',').filter(p => p);
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, ignore: ignorePatterns })
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || `Server error: ${response.status}`);
+                }
+                const result = await response.json();
+                showOutputContainer(result.content);
+            } catch (error) {
+                console.error('Generation failed:', error);
+                const errorMessage = `Error: ${error.message}`;
+                showOutputContainer(errorMessage);
+            }
+        };
+        
+        const handleClear = async () => {
+            try {
+                const response = await fetch('/clear', { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to clear file on server.');
+                urlInput.value = '';
+                ignoreInput.value = '';
+                showPlaceholder();
+                urlInput.focus();
+            } catch (error) {
+                console.error('Clear failed:', error);
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'text-red-400 text-center p-2';
+                errorContainer.textContent = 'Could not clear the context file. Please check the server logs.';
+                outputSection.insertAdjacentElement('beforebegin', errorContainer);
+                setTimeout(() => errorContainer.remove(), 3000);
+            }
+        };
+        
+        const handleCopy = (textToCopy) => {
+            if (typeof textToCopy !== 'string') return;
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-9999px';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const copyBtn = document.getElementById('copy-btn');
+                if (copyBtn) {
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check text-[var(--teal)]"></i>';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Fallback: Error copying text', err);
+            }
+            document.body.removeChild(textArea);
+        };
+        
+        const loadInitialContent = async () => {
+            try {
+                 const response = await fetch('/load');
+                 if (response.ok) {
+                     const result = await response.json();
+                     if (result.content) {
+                        showOutputContainer(result.content);
+                     } else {
+                        showPlaceholder();
+                     }
+                 } else {
+                     showPlaceholder();
+                 }
+            } catch (error) {
+                console.error("Could not load initial content:", error);
+                showPlaceholder();
+            }
+        };
+
+        // Event Listeners
+        urlInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') handleGeneration();
+        });
+        ignoreInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') handleGeneration();
+        });
+        // Load content when the page ready
+        document.addEventListener('DOMContentLoaded', loadInitialContent);
+
+    </script>
+</body>
+</html>
