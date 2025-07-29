@@ -8,4 +8,4 @@ WORKDIR /app
 RUN mkdir -p /app/context
 COPY --from=builder /app/ai-context .
 EXPOSE 8080
-CMD ["/app/ai-context"]
+CMD ["/app/ai-context", "serve"]
