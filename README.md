@@ -76,8 +76,8 @@ docker run --rm --name "ai-context" -d tanq16/ai-context:main
 
 | | |
 | --- | --- |
-| UI | <img src=".github/assets/ui1.gif" height="600px"> <img src=".github/assets/ui2.gif" height="600px"> |
-| CLI | <img src=".github/assets/cli1.gif" height="300px"> <img src=".github/assets/cli2.gif" height="300px"> |
+| UI | <img src=".github/assets/ui1.gif" width="62%"> <img src=".github/assets/ui2.gif" width="22%"> |
+| CLI | <img src=".github/assets/cli1.gif" width="42%"> <img src=".github/assets/cli2.gif" width="42%"> |
 
 ### Primary Usage
 
