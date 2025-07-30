@@ -74,7 +74,7 @@
         <!-- Input Section -->
         <div class="flex flex-col gap-4 flex-shrink-0">
              <input type="text" id="url-input"
-                   class="w-full py-1 text-lg input-underline"
+                   class="w-full py-1 text-base input-underline"
                    placeholder="Paste a URL and press Enter...">
             <input type="text" id="ignore-input"
                    class="w-full py-1 text-base input-underline"
@@ -105,6 +105,7 @@
         <div id="output-container" class="bg-[var(--mantle)] rounded-2xl shadow-2xl flex flex-col h-full">
             <div class="flex-shrink-0 p-1 bg-opacity-50 bg-[var(--base)] rounded-t-2xl flex justify-end items-center">
                 <div class="flex gap-4 pr-2 text-xl text-[var(--subtext0)]">
+                    <button id="download-btn" title="Download" class="hover:text-[var(--teal)] transition-colors"><i class="fa-solid fa-download"></i></button>
                     <button id="copy-btn" title="Copy" class="hover:text-[var(--teal)] transition-colors"><i class="fa-solid fa-copy"></i></button>
                     <button id="clear-btn" title="Clear" class="hover:text-[var(--lavender)] transition-colors"><i class="fa-solid fa-xmark-circle"></i></button>
                 </div>
@@ -137,13 +138,15 @@
             const codeElement = outputClone.querySelector('#generated-code');
             const copyBtn = outputClone.querySelector('#copy-btn');
             const clearBtn = outputClone.querySelector('#clear-btn');
+            const downloadBtn = outputClone.querySelector('#download-btn');
             const sanitizedContent = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             codeElement.innerHTML = sanitizedContent;
             copyBtn.addEventListener('click', () => handleCopy(content));
             clearBtn.addEventListener('click', handleClear);
+            downloadBtn.addEventListener('click', handleDownload);
             outputSection.appendChild(outputClone);
         };
-        
+
         const handleGeneration = async () => {
             const url = urlInput.value.trim();
             if (!url) return;
@@ -209,6 +212,10 @@
                 console.error('Fallback: Error copying text', err);
             }
             document.body.removeChild(textArea);
+        };
+
+        const handleDownload = () => {
+            window.location.href = '/download';
         };
         
         const loadInitialContent = async () => {

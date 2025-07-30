@@ -29,12 +29,29 @@ var ignoreHTMLTags = map[string]bool{
 
 var ignoerAttributes = regexp.MustCompile(`(?i)comment|meta|footer|footnote|masthead|media|related|shoutbox|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter|social|nav|header|menu|authors|newsletter`)
 
+func makeWebRequest(urlStr string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	// google bot simulate
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+	req.Header.Set("Referer", "https://t.co/")        // twitter refer
+	req.Header.Set("X-Forwarded-For", "66.249.66.10") // google bot IP
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	return resp, nil
+}
+
 func ProcessWebContent(urlStr, outputPath string) error {
 	baseURL, err := url.Parse(urlStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse URL: %w", err)
 	}
-	resp, err := http.Get(urlStr)
+	resp, err := makeWebRequest(urlStr)
 	if err != nil {
 		return fmt.Errorf("failed to fetch URL: %w", err)
 	}
