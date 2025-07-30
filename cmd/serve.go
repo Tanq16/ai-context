@@ -122,7 +122,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	if err := cleanupContextDir(); err != nil {
 		log.Printf("Warning: could not clean up context directory: %v", err)
 	}
-	aicontext.Handler([]string{req.URL}, req.Ignore, 1)
+	aicontext.Handler([]string{req.URL}, req.Ignore, 1, true)
 	outputFile, err := findGeneratedFile()
 	if err != nil {
 		http.Error(w, "Failed to find generated context file", http.StatusInternalServerError)

@@ -121,7 +121,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 	}
 }
 
-func Handler(urls []string, ignoreList []string, threads int) {
+func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	// Pre-filter URLs
 	var cleanedUrls []string
 	for _, u := range urls {

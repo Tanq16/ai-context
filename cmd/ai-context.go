@@ -15,6 +15,7 @@ var cmdFlags struct {
 	url        string
 	listFile   string
 	ignoreList []string
+	enableLog  bool
 }
 
 var AIContextVersion = "dev"
@@ -58,7 +59,7 @@ var rootCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads)
+		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads, cmdFlags.enableLog)
 	},
 }
 
@@ -75,4 +76,5 @@ func init() {
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
 	rootCmd.Flags().IntVarP(&cmdFlags.threads, "threads", "t", 10, "Number of threads to use for processing")
 	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs'); helpful with GitHub or local directories")
+	rootCmd.Flags().BoolVar(&cmdFlags.enableLog, "log", false, "Enable log-style output")
 }
