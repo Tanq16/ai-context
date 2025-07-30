@@ -7,7 +7,7 @@
 [![Release Build](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml/badge.svg)](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/tanq16/ai-context)](https://github.com/Tanq16/ai-context/releases/latest)
 
-Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy.
+Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy. AI Context can also serve a web frontend for self-hosting.
 
 <a href="#features">Features</a> &bull; <a href="#installation">Installation</a> &bull; <a href="#usage">Usage</a> &bull; <a href="#acknowledgments">Acknowledgements</a>
 
@@ -20,6 +20,13 @@ Generate AI-friendly markdown files from GitHub repos, local code, YouTube video
 ```bash
 ai-context "https://github.com/tanq16/ai-context" # single URL
 ai-context -f urllist.file                        # URL file
+ai-context serve                                  # serve with web frontend
+```
+
+For self-hosting the web frontend as a Docker container, use:
+
+```bash
+docker run --rm --name "ai-context" -d tanq16/ai-context:main
 ```
 
 ## Features
@@ -38,6 +45,9 @@ ai-context -f urllist.file                        # URL file
     - this converts an HTML webpage to markdown text, stripping off JS and CSS
     - it also downloads all images from the page and stores them locally with UUID filenames
     - the markdown text includes links via local paths to the downloaded images
+- **Self-Hosted Application Variant**
+    - you can self-host the application for quick access from devices with browsers to get context
+    - web frontend uses a simple but elegant Tailwind-UI to allow copy/download of context from all sources
 
 ## Installation
 
@@ -61,6 +71,15 @@ ai-context -f urllist.file                        # URL file
     ```
 
 ## Usage
+
+### Screencasts
+
+| | |
+| --- | --- |
+| UI | <img src=".github/assets/ui1.gif" height="600px"> <img src=".github/assets/ui2.gif" height="600px"> |
+| CLI | <img src=".github/assets/cli1.gif" height="300px"> <img src=".github/assets/cli2.gif" height="300px"> |
+
+### Primary Usage
 
 ```bash
 # Process a single path (local directory) with additional ignore patterns
