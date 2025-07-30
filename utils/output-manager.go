@@ -69,6 +69,7 @@ type Manager struct {
 	err       error
 	doneCh    chan struct{}  // Channel to signal stopping the display
 	displayWg sync.WaitGroup // WaitGroup for display goroutine shutdown
+	disabled  bool
 }
 
 func NewManager() *Manager {
@@ -76,7 +77,14 @@ func NewManager() *Manager {
 		status:    "pending",
 		startTime: time.Now(),
 		doneCh:    make(chan struct{}),
+		disabled:  false,
 	}
+}
+
+func (m *Manager) Disable() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.disabled = true
 }
 
 func (m *Manager) SetMessage(message string) {
@@ -164,6 +172,9 @@ func (m *Manager) getStyledMessage() string {
 func (m *Manager) updateDisplay() {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
+	if m.disabled {
+		return
+	}
 	fmt.Printf("\033[2A\033[J") // clear 2 lines
 	if !m.complete && m.status == "pending" && m.message == "" {
 		// case of unprocessed jobs
@@ -204,7 +215,7 @@ func (m *Manager) StartDisplay() {
 func (m *Manager) checkAndShowError() {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	if m.err == nil {
+	if m.disabled || m.err == nil {
 		return
 	}
 	fmt.Println("  " + errorStyle.Bold(true).Render("Encountered Errors:"))

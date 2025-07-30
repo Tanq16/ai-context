@@ -67,7 +67,7 @@ func cleanURL(rawURL string) (string, error) {
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
+func handlerWorker(toProcess input, resultChan chan result, ignoreList []string, consoleMgr *utils.Console) {
 	switch toProcess.urlType {
 	case "gh":
 		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
@@ -75,6 +75,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 			OutputPath:        output,
 			AdditionalIgnores: ignoreList,
 		})
+		consoleMgr.Log("discovered as type gh; starting collection", false)
 		err := codeProcessor.ProcessGitHubURL(toProcess.url)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
@@ -134,9 +135,18 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	urls = cleanedUrls
 
 	outputMgr := utils.NewManager()
+	consoleMgr := utils.NewConsole()
 	outputMgr.StartDisplay()
+	consoleMgr.Start()
 	defer outputMgr.StopDisplay()
+	defer consoleMgr.Stop()
+	if detailLog {
+		outputMgr.Disable()
+	} else {
+		consoleMgr.Disable()
+	}
 	outputMgr.SetMessage("Creating file structure")
+	consoleMgr.Log("Creating file structure", false)
 
 	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
@@ -153,6 +163,7 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		pluralS = ""
 	}
 	outputMgr.SetMessage(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
+	consoleMgr.Log(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS), false)
 
 	inputURLChan := make(chan input)
 	resultChan := make(chan result)
@@ -167,6 +178,7 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		for completed := range progressChan {
 			totCompleted += completed
 			outputMgr.ReportProgress(totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
+			consoleMgr.Log("finished", false, "total completed", totCompleted, "total URLs", totUrls)
 		}
 	}(int64(totUrls))
 
@@ -186,7 +198,7 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 			go func(toProcess input) {
 				defer wg.Done()
 				defer func() { <-semaphore }()
-				handlerWorker(toProcess, resultChan, ignoreList)
+				handlerWorker(toProcess, resultChan, ignoreList, consoleMgr)
 				progressChan <- 1
 			}(toProcess)
 		}
@@ -258,7 +270,9 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	// Complete output manager
 	if errMsg != "" {
 		outputMgr.Complete("", fmt.Errorf("%s", errMsg))
+		consoleMgr.Log("Completed all operations", true, "errors", errMsg)
 	} else {
 		outputMgr.Complete("All operations completed", nil)
+		consoleMgr.Log("Completed all operations", false)
 	}
 }
