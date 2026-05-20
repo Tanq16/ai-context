@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
+	"sync/atomic"
 
 	"github.com/tanq16/ai-context/utils"
 )
@@ -67,7 +69,7 @@ func cleanURL(rawURL string) (string, error) {
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(toProcess input, resultChan chan result, ignoreList []string, consoleMgr *utils.Console) {
+func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
 	switch toProcess.urlType {
 	case "gh":
 		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
@@ -75,7 +77,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string,
 			OutputPath:        output,
 			AdditionalIgnores: ignoreList,
 		})
-		consoleMgr.Log("discovered as type gh; starting collection", false)
+		utils.PrintIndentedRunning(fmt.Sprintf("%s: starting collection", toProcess.url))
 		err := codeProcessor.ProcessGitHubURL(toProcess.url)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
@@ -134,36 +136,25 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	}
 	urls = cleanedUrls
 
-	outputMgr := utils.NewManager()
-	consoleMgr := utils.NewConsole()
-	outputMgr.StartDisplay()
-	consoleMgr.Start()
-	defer outputMgr.StopDisplay()
-	defer consoleMgr.Stop()
-	if detailLog {
-		outputMgr.Disable()
-	} else {
-		consoleMgr.Disable()
-	}
-	outputMgr.SetMessage("Creating file structure")
-	consoleMgr.Log("Creating file structure", false)
+	utils.PrintRunning("Creating file structure")
 
 	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
-		outputMgr.Complete("", fmt.Errorf("couldn't create context directory: %w", err))
-		return
+		utils.ClearLines(1)
+		utils.PrintFatal("couldn't create context directory", err)
 	}
 	if err := os.MkdirAll(path.Join("context", "images"), 0755); err != nil {
-		outputMgr.Complete("", fmt.Errorf("couldn't create images directory: %w", err))
-		return
+		utils.ClearLines(1)
+		utils.PrintFatal("couldn't create images directory", err)
 	}
+	utils.ClearLines(1)
 	totUrls := len(urls)
 	pluralS := "s"
 	if totUrls == 1 {
 		pluralS = ""
 	}
-	outputMgr.SetMessage(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
-	consoleMgr.Log(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS), false)
+
+	utils.PrintRunning(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
 
 	inputURLChan := make(chan input)
 	resultChan := make(chan result)
@@ -171,44 +162,69 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	var outerWG sync.WaitGroup
 
 	// Start progress reporter
-	outerWG.Add(1)
+	done := make(chan struct{})
+	var printed atomic.Bool
+	// Progress reporter is NOT tracked in outerWG to avoid deadlock.
+	// It is owned and tracked by the `done` channel.
+	var reporterWG sync.WaitGroup
+	reporterWG.Add(1)
 	go func(totUrls int64) {
-		defer outerWG.Done()
+		defer reporterWG.Done()
 		totCompleted := int64(0)
-		for completed := range progressChan {
-			totCompleted += completed
-			outputMgr.ReportProgress(totCompleted, totUrls, fmt.Sprintf("%d finished", totCompleted))
-			consoleMgr.Log("finished", false, "total completed", totCompleted, "total URLs", totUrls)
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		firstTick := true
+		for {
+			select {
+			case <-done:
+				return
+			case completed, ok := <-progressChan:
+				if !ok {
+					// Channel closed, just wait for done
+					progressChan = nil
+				} else {
+					totCompleted += completed
+				}
+			case <-ticker.C:
+				if !firstTick {
+					utils.ClearPreviousLine()
+				}
+				firstTick = false
+				printed.Store(true)
+				pct := int(float64(totCompleted) / float64(totUrls) * 100)
+				utils.PrintProgress(fmt.Sprintf("%d/%d finished", totCompleted, totUrls), pct)
+			}
 		}
 	}(int64(totUrls))
 
 	// Start handler goroutines
+	var workersWG sync.WaitGroup
 	outerWG.Add(1)
 	go func(progCh chan<- int64) {
-		var wg sync.WaitGroup
 		semaphore := make(chan struct{}, threads)
 		defer outerWG.Done()
 		defer close(resultChan)
 		defer close(progressChan)
 		defer close(semaphore)
-		defer wg.Wait()
+		defer workersWG.Wait()
 		for toProcess := range inputURLChan {
-			wg.Add(1)
+			workersWG.Add(1)
 			semaphore <- struct{}{}
 			go func(toProcess input) {
-				defer wg.Done()
+				defer workersWG.Done()
 				defer func() { <-semaphore }()
-				handlerWorker(toProcess, resultChan, ignoreList, consoleMgr)
-				progressChan <- 1
+				handlerWorker(toProcess, resultChan, ignoreList)
+				progCh <- 1
 			}(toProcess)
 		}
 	}(progressChan)
 
 	// Start result collector
-	outerWG.Add(1)
+	var collectorWG sync.WaitGroup
+	collectorWG.Add(1)
 	errors := make([]error, 0)
 	go func() {
-		defer outerWG.Done()
+		defer collectorWG.Done()
 		for result := range resultChan {
 			if result.err != nil {
 				errors = append(errors, fmt.Errorf("failed to process %s: %v", result.url, result.err))
@@ -238,17 +254,20 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 				inputURLChan <- input{url: u, urlType: "generic"}
 				matched = true
 			}
-			if !matched {
-				// log.Error().Str("url", u).Msg("invalid URL format")
-			} else {
-				// log.Debug().Str("url", u).Msg("processing input")
-			}
 		}
 	}(urls)
 
+	// Wait for URL sending and workers to finish
 	outerWG.Wait()
+	collectorWG.Wait()
 
-	// Error Collation
+	close(done)
+	reporterWG.Wait() // wait for reporter to exit gracefully
+	if printed.Load() {
+		utils.ClearPreviousLine()
+	}
+	utils.ClearLines(1)
+
 	var errMsg string
 	if len(errors) > 0 {
 		for _, err := range errors {
@@ -258,21 +277,20 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	// Remove images directory if it's empty
 	files, err := os.ReadDir(path.Join("context", "images"))
 	if err != nil {
-		outputMgr.SetMessage("Operations Completed, error in cleanup")
 		errMsg += (fmt.Errorf("couldn't read images directory: %w", err)).Error() + "\n"
 	} else if len(files) == 0 {
 		err := os.RemoveAll(path.Join("context", "images"))
 		if err != nil {
-			outputMgr.SetMessage("Operations Completed, error in cleanup")
 			errMsg += (fmt.Errorf("failed to delete empty images directory: %w", err)).Error() + "\n"
 		}
 	}
-	// Complete output manager
+
 	if errMsg != "" {
-		outputMgr.Complete("", fmt.Errorf("%s", errMsg))
-		consoleMgr.Log("Completed all operations", true, "errors", errMsg)
+		utils.PrintError("Completed all operations with errors", fmt.Errorf("%s", errMsg))
+		for _, err := range errors {
+			utils.PrintIndentedError("Job failed", err)
+		}
 	} else {
-		outputMgr.Complete("All operations completed", nil)
-		consoleMgr.Log("Completed all operations", false)
+		utils.PrintSuccess("Completed all operations successfully")
 	}
 }

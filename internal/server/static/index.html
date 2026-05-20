@@ -4,31 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Context</title>
-    <script src="static/js/tailwindcss.js"></script>
-    <link href="static/css/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="static/css/all.min.css" />
 
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon.png">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/inter.css">
+    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+
+    <!-- Tailwind Config -->
+    <script src="/static/js/tailwindcss.js"></script>
+
+    <!-- Catppuccin Theme Variables -->
     <style>
         :root {
-            --crust: #11111b;
-            --mantle: #181825;
-            --base: #1e1e2e;
-            --surface0: #313244;
-            --surface1: #45475a;
-            --overlay2: #9399b2;
-            --text: #cdd6f4;
-            --subtext0: #a6adc8;
-            --peach: #fab387;
-            --lavender: #b4befe;
-            --teal: #94e2d5;
+            --rosewater: #f5e0dc; --flamingo: #f2cdcd; --pink: #f5c2e7;
+            --mauve: #cba6f7; --red: #f38ba8; --maroon: #eba0ac;
+            --peach: #fab387; --yellow: #f9e2af; --green: #a6e3a1;
+            --teal: #94e2d5; --sky: #89dceb; --sapphire: #74c7ec;
+            --blue: #89b4fa; --lavender: #b4befe; --text: #cdd6f4;
+            --subtext1: #bac2de; --subtext0: #a6adc8; --overlay2: #9399b2;
+            --overlay1: #7f849c; --overlay0: #6c7086; --surface2: #585b70;
+            --surface1: #45475a; --surface0: #313244; --base: #1e1e2e;
+            --mantle: #181825; --crust: #11111b;
         }
         html, body {
             height: 100%;
         }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--crust);
-            color: var(--text);
         }
         /* scrollbar styles */
         ::-webkit-scrollbar { width: 8px; }
@@ -61,14 +65,42 @@
             word-wrap: break-word;
         }
     </style>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    borderRadius: {
+                        '4xl': '2rem',
+                    },
+                    colors: {
+                        'rosewater': 'var(--rosewater)', 'flamingo': 'var(--flamingo)',
+                        'pink': 'var(--pink)', 'mauve': 'var(--mauve)',
+                        'red': 'var(--red)', 'maroon': 'var(--maroon)',
+                        'peach': 'var(--peach)', 'yellow': 'var(--yellow)',
+                        'green': 'var(--green)', 'teal': 'var(--teal)',
+                        'sky': 'var(--sky)', 'sapphire': 'var(--sapphire)',
+                        'blue': 'var(--blue)', 'lavender': 'var(--lavender)',
+                        'text': 'var(--text)', 'subtext1': 'var(--subtext1)',
+                        'subtext0': 'var(--subtext0)', 'overlay2': 'var(--overlay2)',
+                        'overlay1': 'var(--overlay1)', 'overlay0': 'var(--overlay0)',
+                        'surface2': 'var(--surface2)', 'surface1': 'var(--surface1)',
+                        'surface0': 'var(--surface0)', 'base': 'var(--base)',
+                        'mantle': 'var(--mantle)', 'crust': 'var(--crust)',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="p-2 sm:p-4">
+<body class="bg-crust text-text min-h-screen p-2 sm:p-4">
 
     <main id="main-container" class="w-full max-w-4xl mx-auto flex flex-col gap-4 h-full">
         <!-- Header -->
-        <header class="flex items-center justify-center gap-6 flex-shrink-0">
-            <img src="/static/logo.png" alt="AI Context Logo" class="w-16 h-16 sm:w-20 sm:h-20">
-            <h1 class="text-4xl sm:text-5xl font-bold text-[var(--peach)]">AI Context</h1>
+        <header class="flex items-center justify-center gap-6 flex-shrink-0 mb-6">
+            <img src="/static/icons/logo.png" alt="AI Context Logo" class="w-16 h-16 sm:w-20 sm:h-20">
+            <h1 class="text-4xl sm:text-5xl font-bold text-peach">AI Context</h1>
         </header>
 
         <!-- Input Section -->
@@ -89,28 +121,28 @@
 
     <!-- HTML Templates -->
     <template id="placeholder-template">
-        <div id="placeholder-container" class="text-center py-5 border-2 border-dashed border-[var(--surface0)] rounded-2xl h-full flex items-center justify-center">
-            <p class="text-[var(--overlay2)]">Waiting for a URL to process...</p>
+        <div id="placeholder-container" class="text-center py-5 border-2 border-dashed border-surface0 rounded-2xl h-full flex items-center justify-center">
+            <p class="text-overlay2">Waiting for a URL to process...</p>
         </div>
     </template>
 
     <template id="loading-template">
-        <div id="loading-container" class="text-center py-10 border-2 border-dashed border-[var(--surface0)] rounded-2xl h-full flex flex-col items-center justify-center gap-4">
-            <i class="fa-solid fa-spinner fa-spin text-3xl text-[var(--peach)]"></i>
-            <p class="text-[var(--overlay2)]">Generating context, please wait...</p>
+        <div id="loading-container" class="text-center py-10 border-2 border-dashed border-surface0 rounded-2xl h-full flex flex-col items-center justify-center gap-4">
+            <i class="fa-solid fa-spinner fa-spin text-3xl text-peach"></i>
+            <p class="text-overlay2">Generating context, please wait...</p>
         </div>
     </template>
 
     <template id="output-template">
-        <div id="output-container" class="bg-[var(--mantle)] rounded-2xl shadow-2xl flex flex-col h-full">
-            <div class="flex-shrink-0 p-1 bg-opacity-50 bg-[var(--base)] rounded-t-2xl flex justify-end items-center">
-                <div class="flex gap-4 pr-2 text-xl text-[var(--subtext0)]">
-                    <button id="download-btn" title="Download" class="hover:text-[var(--teal)] transition-colors"><i class="fa-solid fa-download"></i></button>
-                    <button id="copy-btn" title="Copy" class="hover:text-[var(--teal)] transition-colors"><i class="fa-solid fa-copy"></i></button>
-                    <button id="clear-btn" title="Clear" class="hover:text-[var(--lavender)] transition-colors"><i class="fa-solid fa-xmark-circle"></i></button>
+        <div id="output-container" class="bg-mantle rounded-2xl shadow-2xl flex flex-col h-full">
+            <div class="flex-shrink-0 p-1 bg-opacity-50 bg-base rounded-t-2xl flex justify-end items-center border-b border-surface0">
+                <div class="flex gap-4 pr-2 text-xl text-subtext0">
+                    <button id="download-btn" title="Download" class="hover:text-teal transition-colors"><i class="fa-solid fa-download"></i></button>
+                    <button id="copy-btn" title="Copy" class="hover:text-teal transition-colors"><i class="fa-solid fa-copy"></i></button>
+                    <button id="clear-btn" title="Clear" class="hover:text-lavender transition-colors"><i class="fa-solid fa-xmark-circle"></i></button>
                 </div>
             </div>
-            <pre class="flex-grow p-4 sm:p-6 text-sm overflow-auto"><code id="generated-code" class="language-markdown"></code></pre>
+            <pre class="flex-grow p-4 sm:p-6 text-sm overflow-auto"><code id="generated-code" class="language-markdown text-text"></code></pre>
         </div>
     </template>
 
@@ -203,7 +235,7 @@
                 document.execCommand('copy');
                 const copyBtn = document.getElementById('copy-btn');
                 if (copyBtn) {
-                    copyBtn.innerHTML = '<i class="fa-solid fa-check text-[var(--teal)]"></i>';
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check text-teal"></i>';
                     setTimeout(() => {
                         copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
                     }, 2000);

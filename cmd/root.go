@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tanq16/ai-context/aicontext"
-	u "github.com/tanq16/ai-context/utils"
+	"log"
+
+	"github.com/tanq16/ai-context/internal/aicontext"
+	"github.com/tanq16/ai-context/utils"
 )
 
 var cmdFlags struct {
@@ -15,25 +17,27 @@ var cmdFlags struct {
 	url        string
 	listFile   string
 	ignoreList []string
-	enableLog  bool
 }
 
-var AIContextVersion = "dev"
+var AppVersion = "dev-build"
+var debugFlag bool
+var forAIFlag bool
 
 var rootCmd = &cobra.Command{
 	Use:     "ai-context",
 	Short:   "Produce AI context-file for GitHub project, directory, or YouTube video.",
-	Version: AIContextVersion,
+	Version: AppVersion,
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
+	},
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 && cmdFlags.listFile == "" {
 			cmdFlags.url = args[0]
 		} else if len(args) == 0 && cmdFlags.listFile == "" {
-			u.PrintError("no URL argument or list file provided")
-			os.Exit(1)
+			log.Fatalf("ERROR [ai-context] no URL argument or list file provided")
 		} else if len(args) > 0 && cmdFlags.listFile != "" {
-			u.PrintError("received both URL argument and list file")
-			os.Exit(1)
+			log.Fatalf("ERROR [ai-context] received both URL argument and list file")
 		}
 
 		// Input URL processing
@@ -43,8 +47,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			file, err := os.Open(cmdFlags.listFile)
 			if err != nil {
-				u.PrintError("failed to open list file")
-				os.Exit(1)
+				log.Fatalf("ERROR [ai-context] failed to open list file: %v", err)
 			}
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -55,26 +58,38 @@ var rootCmd = &cobra.Command{
 				}
 			}
 			if scanner.Err() != nil {
-				u.PrintError("failed to read list file")
-				os.Exit(1)
+				log.Fatalf("ERROR [ai-context] failed to read list file: %v", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads, cmdFlags.enableLog)
+		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads, false)
 	},
 }
 
 func Execute() {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
+func setupLogs() {
+	if debugFlag {
+		utils.GlobalDebugFlag = true
+	}
+	if forAIFlag {
+		utils.GlobalForAIFlag = true
+	}
+}
+
 func init() {
+	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
+
+	rootCmd.PersistentFlags().BoolVar(&debugFlag, "debug", false, "Enable debug logging")
+	rootCmd.PersistentFlags().BoolVar(&forAIFlag, "for-ai", false, "AI-friendly output (plain text, piped input)")
+	rootCmd.MarkFlagsMutuallyExclusive("debug", "for-ai")
+
+	cobra.OnInitialize(setupLogs)
+
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
 	rootCmd.Flags().IntVarP(&cmdFlags.threads, "threads", "t", 10, "Number of threads to use for processing")
 	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs'); helpful with GitHub or local directories")
-	rootCmd.Flags().BoolVar(&cmdFlags.enableLog, "log", false, "Enable log-style output")
 }

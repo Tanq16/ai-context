@@ -3,10 +3,8 @@ package cmd
 import (
 	"archive/zip"
 	"bytes"
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -14,16 +12,35 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tanq16/ai-context/aicontext"
+	"github.com/tanq16/ai-context/internal/aicontext"
+	"github.com/tanq16/ai-context/internal/server"
 )
 
-//go:embed all:web
-var webFS embed.FS
+var serveFlags struct {
+	port int
+	host string
+}
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Launch a web server to use the AI Context tool through a UI.",
-	Run:   runServer,
+	Run: func(cmd *cobra.Command, args []string) {
+		srv := server.New(serveFlags.host, serveFlags.port)
+		if err := srv.Setup(); err != nil {
+			log.Fatalf("ERROR [server] Failed to setup: %v", err)
+		}
+		log.Printf("INFO [server] Starting on %s:%d", serveFlags.host, serveFlags.port)
+
+		// External API routes
+		srv.RegisterAPI("/generate", generateHandler)
+		srv.RegisterAPI("/load", loadHandler)
+		srv.RegisterAPI("/clear", clearHandler)
+		srv.RegisterAPI("/download", downloadHandler)
+
+		if err := srv.Run(); err != nil {
+			log.Fatalf("ERROR [server] Server error: %v", err)
+		}
+	},
 }
 
 type generateRequest struct {
@@ -35,40 +52,6 @@ type generateResponse struct {
 	Content string `json:"content"`
 }
 
-func runServer(cmd *cobra.Command, args []string) {
-	webContentFS, err := fs.Sub(webFS, "web")
-	if err != nil {
-		log.Fatalf("Failed to create web content file system: %v", err)
-	}
-	http.Handle("/static/", http.FileServer(http.FS(webContentFS)))
-	http.HandleFunc("/generate", generateHandler)
-	http.HandleFunc("/load", loadHandler)
-	http.HandleFunc("/clear", clearHandler)
-	http.HandleFunc("/download", downloadHandler)
-	http.HandleFunc("/", rootHandler(webContentFS))
-	port := "8080"
-	fmt.Printf("Starting server at http://localhost:%s\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
-}
-
-func rootHandler(fs fs.FS) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			indexHTML, err := webFS.ReadFile("web/index.html")
-			if err != nil {
-				http.Error(w, "Could not read index.html", http.StatusInternalServerError)
-				log.Printf("Error reading embedded index.html: %v", err)
-				return
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(indexHTML)
-			return
-		}
-		http.FileServer(http.FS(fs)).ServeHTTP(w, r)
-	}
-}
 
 func clearHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -243,4 +226,6 @@ func findGeneratedFile() (string, error) {
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
+	serveCmd.Flags().IntVarP(&serveFlags.port, "port", "p", 8080, "Port to listen on")
+	serveCmd.Flags().StringVarP(&serveFlags.host, "host", "H", "0.0.0.0", "Host to bind to")
 }
