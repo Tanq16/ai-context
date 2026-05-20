@@ -31,13 +31,11 @@ type ProcessorConfig struct {
 	AdditionalIgnores []string
 }
 
-// Processor processes the source code context
 type Processor struct {
 	config         ProcessorConfig
 	ignorePatterns *IgnorePatterns
 }
 
-// Markdown template for the output
 const markdownTemplate = `# Source Code Context
 
 Generated on: {{.GenerationDate}}

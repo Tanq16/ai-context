@@ -34,10 +34,6 @@ func makeWebRequest(urlStr string) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	// google bot simulate
-	// req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
-	// req.Header.Set("Referer", "https://t.co/")        // twitter refer
-	// req.Header.Set("X-Forwarded-For", "66.249.66.10") // google bot IP
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -66,14 +62,11 @@ func ProcessWebContent(urlStr, outputPath string) error {
 		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
 	cleanHTML(doc)
-	_ = processImages(doc, baseURL) // ignore errors
+	_ = processImages(doc, baseURL)
 	markdown, err := htmltomarkdown.ConvertString(renderNode(doc))
 	if err != nil {
 		return fmt.Errorf("failed to convert to markdown: %w", err)
 	}
-	// double wrap
-	// re := regexp.MustCompile(`\[!\[(.*?)\]\((.*?)\)\]\(.*?\)`)
-	// markdown = re.ReplaceAllString(markdown, "![$1]($2)")
 	title := findTitle(doc)
 	if title == "" {
 		title = baseURL.Host
@@ -109,7 +102,6 @@ func cleanHTML(n *html.Node) {
 				continue
 			}
 		}
-		// recursive for node that wasn't cleaned
 		cleanHTML(c)
 	}
 }
@@ -142,18 +134,16 @@ func processImages(doc *html.Node, baseURL *url.URL) error {
 						imgURL = baseURL.ResolveReference(imgURL)
 					}
 
-					// Download image and name it a uuid
 					ext := path.Ext(imgURL.Path)
 					if ext == "" {
-						ext = ".jpg" // default extension
+						ext = ".jpg"
 					}
 					filename := uuid.New().String() + ext
 					localPath := path.Join("context", "images", filename)
 					err = downloadImage(imgURL.String(), localPath)
 					if err != nil {
-						continue // just skip image
+						continue
 					}
-					// make src point to local image
 					n.Attr[i].Val = path.Join(".", "images", filename)
 				}
 			}

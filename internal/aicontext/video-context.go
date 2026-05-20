@@ -46,10 +46,8 @@ func ExtractVideoID(urlStr string) (string, error) {
 	return "", fmt.Errorf("could not extract video ID from URL")
 }
 
-// Dictionary is a helper type for working with nested map[string]any structures
 type Dictionary map[string]any
 
-// UnwindString traverses a nested map[string]any to extract a string value.
 func (d Dictionary) UnwindString(keys ...string) string {
 	current := map[string]any(d)
 	for i, key := range keys {
@@ -72,7 +70,6 @@ func (d Dictionary) UnwindString(keys ...string) string {
 	return ""
 }
 
-// UnwindSlice traverses a nested map[string]any to extract a []any value.
 func (d Dictionary) UnwindSlice(keys ...string) []any {
 	current := map[string]any(d)
 	for i, key := range keys {
@@ -176,17 +173,16 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract video ID: %v", err)
 	}
-	// Extract the API key from the page
+
 	apiKey, err := extractInnertubeKey(videoID)
 	if err != nil {
-		// Fall back to a default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
 	}
-	// Create InnerTube request for video data
+
 	nextReq := InnerTubeRequest{}
 	nextReq.Context.Client.ClientName = "WEB"
 	nextReq.Context.Client.ClientVersion = "2.20240105.01.00"
-	// First request to get video data
+
 	reqBody := map[string]any{
 		"videoId": videoID,
 		"context": nextReq.Context,
@@ -195,7 +191,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video data: %v", err)
 	}
-	// Extract transcript parameters
+
 	params, err := getTranscriptParams(videoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript params: %v", err)
@@ -208,7 +204,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript: %v", err)
 	}
-	// Format transcript segments
+
 	segments, err := formatTranscriptSegments(transcriptData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format transcript: %v", err)

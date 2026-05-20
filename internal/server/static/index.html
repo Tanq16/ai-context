@@ -10,7 +10,9 @@
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="/static/css/inter.css">
-    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+
+    <!-- Lucide Icons -->
+    <script src="/static/js/lucide.min.js"></script>
 
     <!-- Tailwind Config -->
     <script src="/static/js/tailwindcss.js"></script>
@@ -128,7 +130,7 @@
 
     <template id="loading-template">
         <div id="loading-container" class="text-center py-10 border-2 border-dashed border-surface0 rounded-2xl h-full flex flex-col items-center justify-center gap-4">
-            <i class="fa-solid fa-spinner fa-spin text-3xl text-peach"></i>
+            <i data-lucide="loader-2" class="animate-spin text-3xl text-peach"></i>
             <p class="text-overlay2">Generating context, please wait...</p>
         </div>
     </template>
@@ -137,9 +139,9 @@
         <div id="output-container" class="bg-mantle rounded-2xl shadow-2xl flex flex-col h-full">
             <div class="flex-shrink-0 p-1 bg-opacity-50 bg-base rounded-t-2xl flex justify-end items-center border-b border-surface0">
                 <div class="flex gap-4 pr-2 text-xl text-subtext0">
-                    <button id="download-btn" title="Download" class="hover:text-teal transition-colors"><i class="fa-solid fa-download"></i></button>
-                    <button id="copy-btn" title="Copy" class="hover:text-teal transition-colors"><i class="fa-solid fa-copy"></i></button>
-                    <button id="clear-btn" title="Clear" class="hover:text-lavender transition-colors"><i class="fa-solid fa-xmark-circle"></i></button>
+                    <button id="download-btn" title="Download" class="hover:text-teal transition-colors"><i data-lucide="download"></i></button>
+                    <button id="copy-btn" title="Copy" class="hover:text-teal transition-colors"><i data-lucide="copy"></i></button>
+                    <button id="clear-btn" title="Clear" class="hover:text-lavender transition-colors"><i data-lucide="x-circle"></i></button>
                 </div>
             </div>
             <pre class="flex-grow p-4 sm:p-6 text-sm overflow-auto"><code id="generated-code" class="language-markdown text-text"></code></pre>
@@ -163,6 +165,7 @@
         const showLoadingState = () => {
             outputSection.innerHTML = '';
             outputSection.appendChild(loadingTemplate.content.cloneNode(true));
+            lucide.createIcons();
         };
         const showOutputContainer = (content) => {
             outputSection.innerHTML = '';
@@ -177,6 +180,7 @@
             clearBtn.addEventListener('click', handleClear);
             downloadBtn.addEventListener('click', handleDownload);
             outputSection.appendChild(outputClone);
+            lucide.createIcons();
         };
 
         const handleGeneration = async () => {
@@ -235,9 +239,11 @@
                 document.execCommand('copy');
                 const copyBtn = document.getElementById('copy-btn');
                 if (copyBtn) {
-                    copyBtn.innerHTML = '<i class="fa-solid fa-check text-teal"></i>';
+                    copyBtn.innerHTML = '<i data-lucide="check" class="text-teal"></i>';
+                    lucide.createIcons({ nodes: [copyBtn] });
                     setTimeout(() => {
-                        copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+                        copyBtn.innerHTML = '<i data-lucide="copy"></i>';
+                        lucide.createIcons({ nodes: [copyBtn] });
                     }, 2000);
                 }
             } catch (err) {
@@ -277,7 +283,10 @@
             if (event.key === 'Enter') handleGeneration();
         });
         // Load content when the page ready
-        document.addEventListener('DOMContentLoaded', loadInitialContent);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInitialContent();
+            lucide.createIcons();
+        });
 
     </script>
 </body>

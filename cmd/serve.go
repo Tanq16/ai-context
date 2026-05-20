@@ -31,7 +31,6 @@ var serveCmd = &cobra.Command{
 		}
 		log.Printf("INFO [server] Starting on %s:%d", serveFlags.host, serveFlags.port)
 
-		// External API routes
 		srv.RegisterAPI("/generate", generateHandler)
 		srv.RegisterAPI("/load", loadHandler)
 		srv.RegisterAPI("/clear", clearHandler)
@@ -144,7 +143,6 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	imagesDir := filepath.Join("context", "images")
 	images, err := os.ReadDir(imagesDir)
-	// Only MD file if no images pulled
 	if err != nil || len(images) == 0 {
 		w.Header().Set("Content-Type", "text/markdown")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(mdFile)))

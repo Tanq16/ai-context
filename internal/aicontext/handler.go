@@ -52,7 +52,6 @@ func cleanURL(rawURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %w", err)
 	}
-	// preserve video id for yt
 	if strings.Contains(parsedURL.Host, "youtube.com") {
 		videoID := parsedURL.Query().Get("v")
 		if videoID != "" {
@@ -125,7 +124,6 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 }
 
 func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
-	// Pre-filter URLs
 	var cleanedUrls []string
 	for _, u := range urls {
 		cleaned, err := cleanURL(u)
@@ -138,7 +136,6 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 
 	utils.PrintRunning("Creating file structure")
 
-	// Create output directories if they doesn't exist
 	if err := os.MkdirAll("context", 0755); err != nil {
 		utils.ClearLines(1)
 		utils.PrintFatal("couldn't create context directory", err)
@@ -161,11 +158,8 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 	progressChan := make(chan int64)
 	var outerWG sync.WaitGroup
 
-	// Start progress reporter
 	done := make(chan struct{})
 	var printed atomic.Bool
-	// Progress reporter is NOT tracked in outerWG to avoid deadlock.
-	// It is owned and tracked by the `done` channel.
 	var reporterWG sync.WaitGroup
 	reporterWG.Add(1)
 	go func(totUrls int64) {
@@ -180,7 +174,6 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 				return
 			case completed, ok := <-progressChan:
 				if !ok {
-					// Channel closed, just wait for done
 					progressChan = nil
 				} else {
 					totCompleted += completed
@@ -197,7 +190,6 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		}
 	}(int64(totUrls))
 
-	// Start handler goroutines
 	var workersWG sync.WaitGroup
 	outerWG.Add(1)
 	go func(progCh chan<- int64) {
@@ -219,7 +211,6 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		}
 	}(progressChan)
 
-	// Start result collector
 	var collectorWG sync.WaitGroup
 	collectorWG.Add(1)
 	errors := make([]error, 0)
@@ -232,7 +223,6 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		}
 	}()
 
-	// Process URLs
 	outerWG.Add(1)
 	go func(urls []string) {
 		defer outerWG.Done()
@@ -257,12 +247,11 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 		}
 	}(urls)
 
-	// Wait for URL sending and workers to finish
 	outerWG.Wait()
 	collectorWG.Wait()
 
 	close(done)
-	reporterWG.Wait() // wait for reporter to exit gracefully
+	reporterWG.Wait()
 	if printed.Load() {
 		utils.ClearPreviousLine()
 	}
@@ -274,7 +263,7 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 			errMsg += (err.Error() + "\n")
 		}
 	}
-	// Remove images directory if it's empty
+
 	files, err := os.ReadDir(path.Join("context", "images"))
 	if err != nil {
 		errMsg += (fmt.Errorf("couldn't read images directory: %w", err)).Error() + "\n"

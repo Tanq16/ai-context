@@ -40,7 +40,6 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("ERROR [ai-context] received both URL argument and list file")
 		}
 
-		// Input URL processing
 		var urls []string
 		if cmdFlags.listFile == "" {
 			urls = append(urls, cmdFlags.url)

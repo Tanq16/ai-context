@@ -23,7 +23,6 @@ STATIC_DIR := internal/server/static
 JS_DIR := $(STATIC_DIR)/js
 CSS_DIR := $(STATIC_DIR)/css
 FONTS_DIR := $(STATIC_DIR)/fonts
-FONTAWESOME_DIR := $(STATIC_DIR)/fontawesome
 ICONS_DIR := $(STATIC_DIR)/icons
 
 # Console colors
@@ -46,7 +45,7 @@ help: ## Show this help
 # =============================================================================
 assets: ## Download static assets
 	@echo "$(CYAN)Downloading assets...$(NC)"
-	@mkdir -p $(JS_DIR) $(CSS_DIR) $(FONTS_DIR) $(FONTAWESOME_DIR)/css $(FONTAWESOME_DIR)/webfonts $(ICONS_DIR)
+	@mkdir -p $(JS_DIR) $(CSS_DIR) $(FONTS_DIR) $(ICONS_DIR)
 	@curl -sL "https://cdn.tailwindcss.com" -o "$(JS_DIR)/tailwindcss.js"
 	@curl -sL "https://unpkg.com/lucide@$(LUCIDE_VERSION)/dist/umd/lucide.min.js" -o "$(JS_DIR)/lucide.min.js"
 	@curl -sL "https://cdn.jsdelivr.net/npm/marked@$(MARKEDJS_VERSION)/marked.min.js" -o "$(JS_DIR)/marked.min.js"
@@ -60,11 +59,6 @@ assets: ## Download static assets
 	done
 	@sed -i.bak -E 's|https://fonts.gstatic.com/s/inter/[^/]+/||g' "$(CSS_DIR)/inter.css" && rm -f "$(CSS_DIR)/inter.css.bak"
 	@sed -i.bak 's|src: url(|src: url(/static/fonts/|g' "$(CSS_DIR)/inter.css" && rm -f "$(CSS_DIR)/inter.css.bak"
-	@curl -sL "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" -o "$(FONTAWESOME_DIR)/css/all.min.css"
-	@sed -i.bak 's|../webfonts/|/static/fontawesome/webfonts/|g' "$(FONTAWESOME_DIR)/css/all.min.css" && rm -f "$(FONTAWESOME_DIR)/css/all.min.css.bak"
-	@for font in fa-solid-900.woff2 fa-brands-400.woff2 fa-regular-400.woff2; do \
-		curl -sL "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/webfonts/$$font" -o "$(FONTAWESOME_DIR)/webfonts/$$font"; \
-	done
 	@echo "$(GREEN)Assets downloaded$(NC)"
 
 verify-assets: ## Verify required assets exist
