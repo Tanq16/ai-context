@@ -42,25 +42,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   # ===========================================================================
-  # Step 2a: Build and push Docker image (parallel)
-  # ===========================================================================
-  docker:
-    needs: create-release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: tanq16
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
-      - name: Build and Push
-        run: make docker-push VERSION=${{ needs.create-release.outputs.version }}
-
-  # ===========================================================================
-  # Step 2b: Build binaries (parallel matrix)
+  # Step 2: Build binaries (matrix)
   # ===========================================================================
   binaries:
     needs: create-release
@@ -75,10 +57,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-
-      - name: Download Assets
-        run: make assets
+          go-version: '1.25'
 
       - name: Build Binary
         run: make build-for GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} VERSION=${{ needs.create-release.outputs.version }}
@@ -96,7 +75,7 @@ jobs:
   # Step 3: Publish release
   # ===========================================================================
   publish:
-    needs: [create-release, docker, binaries]
+    needs: [create-release, binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,8 +89,8 @@ jobs:
   # Cleanup on failure
   # ===========================================================================
   cleanup-on-failure:
-    needs: [create-release, docker, binaries, publish]
-    if: always() && (needs.docker.result == 'failure' || needs.binaries.result == 'failure' || needs.publish.result == 'failure') && needs.create-release.outputs.release_created == 'true'
+    needs: [create-release, binaries, publish]
+    if: always() && (needs.binaries.result == 'failure' || needs.publish.result == 'failure') && needs.create-release.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Delete Draft Release

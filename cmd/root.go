@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
-	"log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/tanq16/ai-context/internal/aicontext"
 	"github.com/tanq16/ai-context/utils"
@@ -35,9 +37,9 @@ var rootCmd = &cobra.Command{
 		if len(args) > 0 && cmdFlags.listFile == "" {
 			cmdFlags.url = args[0]
 		} else if len(args) == 0 && cmdFlags.listFile == "" {
-			log.Fatalf("ERROR [ai-context] no URL argument or list file provided")
+			utils.PrintFatal("no URL argument or list file provided", nil)
 		} else if len(args) > 0 && cmdFlags.listFile != "" {
-			log.Fatalf("ERROR [ai-context] received both URL argument and list file")
+			utils.PrintFatal("received both URL argument and list file", nil)
 		}
 
 		var urls []string
@@ -46,7 +48,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			file, err := os.Open(cmdFlags.listFile)
 			if err != nil {
-				log.Fatalf("ERROR [ai-context] failed to open list file: %v", err)
+				utils.PrintFatal("failed to open list file", err)
 			}
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -57,7 +59,7 @@ var rootCmd = &cobra.Command{
 				}
 			}
 			if scanner.Err() != nil {
-				log.Fatalf("ERROR [ai-context] failed to read list file: %v", scanner.Err())
+				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
 		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads, false)
@@ -71,11 +73,21 @@ func Execute() {
 }
 
 func setupLogs() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	output := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.DateTime,
+		NoColor:    false,
+	}
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if debugFlag {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		log.Logger = zerolog.New(output).With().Timestamp().Logger()
 		utils.GlobalDebugFlag = true
 	}
 	if forAIFlag {
 		utils.GlobalForAIFlag = true
+		zerolog.SetGlobalLevel(zerolog.Disabled)
 	}
 }
 
