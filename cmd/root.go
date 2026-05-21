@@ -15,10 +15,12 @@ import (
 )
 
 var cmdFlags struct {
-	threads    int
-	url        string
-	listFile   string
-	ignoreList []string
+	threads      int
+	url          string
+	listFile     string
+	includeGlobs []string
+	excludeGlobs []string
+	maxSize      int64
 }
 
 var AppVersion = "dev-build"
@@ -62,7 +64,7 @@ var rootCmd = &cobra.Command{
 				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.ignoreList, cmdFlags.threads, false)
+		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false)
 	},
 }
 
@@ -102,5 +104,7 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&cmdFlags.listFile, "file", "f", "", "File with list of URLs to process")
 	rootCmd.Flags().IntVarP(&cmdFlags.threads, "threads", "t", 10, "Number of threads to use for processing")
-	rootCmd.Flags().StringSliceVarP(&cmdFlags.ignoreList, "ignore", "i", []string{}, "Additional patterns to ignore (e.g., 'tests,docs'); helpful with GitHub or local directories")
+	rootCmd.Flags().StringSliceVarP(&cmdFlags.includeGlobs, "include", "i", []string{}, "Include files matching globs (e.g., '*.go,*.md')")
+	rootCmd.Flags().StringSliceVarP(&cmdFlags.excludeGlobs, "exclude", "e", []string{}, "Exclude files matching globs (e.g., 'tests,docs')")
+	rootCmd.Flags().Int64VarP(&cmdFlags.maxSize, "max-size", "s", 10485760, "Maximum file size in bytes to include (default 10MB)")
 }

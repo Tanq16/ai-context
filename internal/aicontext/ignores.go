@@ -5,37 +5,64 @@ import (
 	"strings"
 )
 
-type IgnorePatterns struct {
-	defaultPatterns []string
-	customPatterns  []string
+type PathFilter struct {
+	defaultExcludes []string
+	includePatterns []string
+	excludePatterns []string
 }
 
-func newIgnorePatterns(additionalPatterns []string) *IgnorePatterns {
-	customPatterns := make([]string, len(additionalPatterns))
-	for i, pattern := range additionalPatterns {
-		customPatterns[i] = "*/" + pattern
-	}
-	return &IgnorePatterns{
-		defaultPatterns: defaultIgnores,
-		customPatterns:  customPatterns,
-	}
-}
-
-func (ip *IgnorePatterns) shouldIgnore(path string) bool {
-	for _, pattern := range ip.defaultPatterns {
-		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
-			return true
+func newPathFilter(includePatterns []string, excludePatterns []string) *PathFilter {
+	parsedIncludes := make([]string, 0)
+	for _, p := range includePatterns {
+		if p != "" {
+			parsedIncludes = append(parsedIncludes, p)
 		}
 	}
-	for _, pattern := range ip.customPatterns {
+
+	parsedExcludes := make([]string, len(excludePatterns))
+	for i, pattern := range excludePatterns {
+		parsedExcludes[i] = "*/" + pattern
+	}
+
+	return &PathFilter{
+		defaultExcludes: defaultIgnores,
+		includePatterns: parsedIncludes,
+		excludePatterns: parsedExcludes,
+	}
+}
+
+func (pf *PathFilter) shouldInclude(path string, isDir bool) bool {
+	for _, pattern := range pf.defaultExcludes {
+		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+			return false
+		}
+	}
+
+	for _, pattern := range pf.excludePatterns {
 		if matched, _ := filepath.Match(pattern, path); matched {
-			return true
+			return false
 		}
 		if matched, _ := filepath.Match(strings.TrimPrefix(pattern, "*/"), filepath.Base(path)); matched {
-			return true
+			return false
 		}
 	}
-	return false
+
+	if len(pf.includePatterns) > 0 {
+		if isDir {
+			return true
+		}
+		for _, pattern := range pf.includePatterns {
+			if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+				return true
+			}
+			if matched, _ := filepath.Match(pattern, path); matched {
+				return true
+			}
+		}
+		return false
+	}
+
+	return true
 }
 
 func isBinary(content []byte) bool {

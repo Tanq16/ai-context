@@ -27,13 +27,15 @@ type Output struct {
 }
 
 type ProcessorConfig struct {
-	OutputPath        string
-	AdditionalIgnores []string
+	OutputPath   string
+	IncludeGlobs []string
+	ExcludeGlobs []string
+	MaxSize      int64
 }
 
 type Processor struct {
-	config         ProcessorConfig
-	ignorePatterns *IgnorePatterns
+	config ProcessorConfig
+	filter *PathFilter
 }
 
 const markdownTemplate = `# Source Code Context
@@ -63,8 +65,8 @@ Generated on: {{.GenerationDate}}
 
 func NewProcessor(config ProcessorConfig) *Processor {
 	return &Processor{
-		config:         config,
-		ignorePatterns: newIgnorePatterns(config.AdditionalIgnores),
+		config: config,
+		filter: newPathFilter(config.IncludeGlobs, config.ExcludeGlobs),
 	}
 }
 
@@ -114,13 +116,16 @@ func (p *Processor) processDirectory(root string) (*Output, error) {
 		if err != nil {
 			return err
 		}
-		if p.ignorePatterns.shouldIgnore(relPath) {
+		if !p.filter.shouldInclude(relPath, info.IsDir()) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		if info.IsDir() {
+			return nil
+		}
+		if p.config.MaxSize > 0 && info.Size() > p.config.MaxSize {
 			return nil
 		}
 		content, err := os.ReadFile(path)
@@ -221,7 +226,7 @@ func (p *Processor) generateDirectoryTree(root string) string {
 		if err != nil {
 			return err
 		}
-		if p.ignorePatterns.shouldIgnore(relPath) {
+		if !p.filter.shouldInclude(relPath, info.IsDir()) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
