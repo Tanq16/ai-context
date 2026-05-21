@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # Step 1: Calculate version and create draft release
+  # ===========================================================================
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_created: ${{ steps.create_release.outputs.release_created }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate Version
+        id: version
+        run: |
+          NEW_VERSION=$(make -s version)
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create Draft Release
+        id: create_release
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --draft \
+            --notes "ai-context ${{ steps.version.outputs.version }}" \
+            --target ${{ github.sha }}
+          echo "release_created=true" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # ===========================================================================
+  # Step 2: Build binaries (matrix)
+  # ===========================================================================
+  binaries:
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build Binary
+        run: make build-for GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} VERSION=${{ needs.create-release.outputs.version }}
+
+      - name: Upload Release Asset
+        run: |
+          BINARY=$(ls *-${{ matrix.os }}-${{ matrix.arch }} 2>/dev/null | head -1)
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            "$BINARY" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # ===========================================================================
+  # Step 3: Publish release
+  # ===========================================================================
+  publish:
+    needs: [create-release, binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish Release
+        run: gh release edit "${{ needs.create-release.outputs.version }}" --draft=false
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # ===========================================================================
+  # Cleanup on failure
+  # ===========================================================================
+  cleanup-on-failure:
+    needs: [create-release, binaries, publish]
+    if: always() && (needs.binaries.result == 'failure' || needs.publish.result == 'failure') && needs.create-release.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Draft Release
+        run: |
+          echo "Cleaning up draft release due to workflow failure"
+          gh release delete "${{ needs.create-release.outputs.version }}" --yes
+        env:
+          GH_TOKEN: ${{ github.token }}

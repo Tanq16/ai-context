@@ -1,85 +1,49 @@
 <div align="center">
+  <img src=".github/assets/logo.png" alt="AI Context Logo" width="200">
+  <h1>AI Context</h1>
 
-<img src=".github/assets/logo.png" alt="AI Context Logo" width="250"/>
-
-<h1>AI Context</h1>
-
-[![Release Build](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml/badge.svg)](https://github.com/tanq16/ai-context/actions/workflows/build-release.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/tanq16/ai-context)](https://github.com/Tanq16/ai-context/releases/latest)
-
-Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy. AI Context can also serve a web frontend for self-hosting.
-
-<a href="#features">Features</a> &bull; <a href="#installation">Installation</a> &bull; <a href="#usage">Usage</a> &bull; <a href="#acknowledgments">Acknowledgements</a>
-
+  <a href="https://github.com/tanq16/ai-context/actions/workflows/release.yaml"><img alt="Build Workflow" src="https://github.com/tanq16/ai-context/actions/workflows/release.yaml/badge.svg"></a>&nbsp;<a href="https://github.com/tanq16/ai-context/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/tanq16/ai-context"></a><br><br>
+  <a href="#capabilities">Capabilities</a> &bull; <a href="#installation">Installation</a> &bull; <a href="#usage">Usage</a> &bull; <a href="#tips-and-notes">Tips & Notes</a>
 </div>
 
 ---
 
-`Quickstart` &rarr;
+Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy.
 
-```bash
-ai-context "https://github.com/tanq16/ai-context" # single URL
-ai-context -f urllist.file                        # URL file
-ai-context serve                                  # serve with web frontend
-```
+## Capabilities
 
-For self-hosting the web frontend as a Docker container, use:
-
-```bash
-docker run --rm --name "ai-context" -d tanq16/ai-context:main
-```
-
-## Features
-
-- **Local Directory Processing**
-    - this is mainly for locally available code bases (directories or already cloned git repos)
-    - the context file includes directory structure and all file contents within context
-- **GitHub Repository Processing**
-    - this clones and processes provided GitHub link and does the same as *Local Directory Processing*
-    - it temporarily clones the repository, so no need for cleanup
-    - it also supports private repositories on GitHub through use of `GH_TOKEN` environment variable
-- **YouTube Transcript Processing**
-    - this downloads transcripts for given YouTube video link and stores it as markdown
-    - the transcript also preserves time segments
-- **WebPage Processing**
-    - this converts an HTML webpage to markdown text, stripping off JS and CSS
-    - it also downloads all images from the page and stores them locally with UUID filenames
-    - the markdown text includes links via local paths to the downloaded images
-- **Self-Hosted Application Variant**
-    - you can self-host the application for quick access from devices with browsers to get context
-    - web frontend uses a simple but elegant Tailwind-UI to allow copy/download of context from all sources
+| Category | Commands | Description |
+|----------|----------|-------------|
+| Processing | `ai-context [url/path]` | Process local directories, GitHub repos, YouTube videos, or webpages |
+| Batch | `ai-context -f [file]` | Process multiple sources concurrently from a list file |
 
 ## Installation
 
-- **Binary**
-    - Download the latest release for your platform and OS from the [releases page](https://github.com/tanq16/ai-context/releases)
-    - Binaries are build via GitHub actions for MacOS, Linux, and Windows for both AMD64 (x86_64) and ARM64 (like Apple Silicon) architectures
-    - You can also download specific versions if needed; however, the latest version is recommended
-- **Go Install**
-    - Run the following command (requires `Go v1.22+`):
-    ```bash
-    go install github.com/tanq16/ai-context@latest
-    ```
-    - For specific versions, use binaries or build specific commits as I have not and will not implement Go-native binary versioning
-- **Local Build**
-    ```bash
-    git clone https://github.com/tanq16/ai-context.git && \
-    cd ai-context
-    ```
-    ```bash
-    go build .
-    ```
+### Binary
+
+Download from [releases](https://github.com/tanq16/ai-context/releases):
+
+```bash
+# Linux/macOS
+ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH=amd64; [ "$ARCH" = "aarch64" ] && ARCH=arm64
+curl -sL https://github.com/tanq16/ai-context/releases/latest/download/ai-context-$(uname -s | tr '[:upper:]' '[:lower:]')-$ARCH -o ai-context
+chmod +x ai-context
+sudo mv ai-context /usr/local/bin/
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/tanq16/ai-context.git
+cd ai-context
+make build
+```
 
 ## Usage
 
-### Screencasts
+### Processing
 
-| | |
-| --- | --- |
-| UI | <img src=".github/assets/ui1.gif" width="62%"> <img src=".github/assets/ui2.gif" width="22%"> |
-| CLI | <img src=".github/assets/cli1.gif" width="42%"> <img src=".github/assets/cli2.gif" width="42%"> |
-
-### Primary Usage
+Generate context from a single source.
 
 ```bash
 # Process a single path (local directory) with additional ignore patterns
@@ -88,6 +52,20 @@ ai-context /path/to/directory  -i "tests,docs,*doc.*"
 # Process one URL (GitHub repo or YouTube Video or Webpage URL)
 ai-context https://www.youtube.com/watch?v=video_id
 
+# Process private GitHub repository
+GH_TOKEN=$(cat /secrets/GH.PAT) ai-context https://github.com/ORG/REPO
+```
+
+**Flags:**
+- `--ignore, -i` - Additional patterns to ignore (e.g., 'tests,docs')
+- `--debug` - Enable debug logging
+- `--for-ai` - AI-friendly output (plain text, piped input)
+
+### Batch Processing
+
+Generate context from multiple sources listed in a file.
+
+```bash
 # Make a list of paths
 cat << EOF > listfile
 ../notif
@@ -98,44 +76,17 @@ EOF
 
 # Process URL list concurrently
 ai-context -f listfile
-
-# Process private GitHub repository
-GH_TOKEN=$(cat /secrets/GH.PAT) ai-context -u https://github.com/ORG/REPO
 ```
 
-> [!WARNING]
-> For directory path (in URL or listfile mode), the path should either start with `/` (absolute) or with `./` or `../` (relative). For current directory, always use `./` for correct regex matching.
+**Flags:**
+- `--file, -f` - File with list of URLs to process
+- `--threads, -t` - Number of threads to use for processing (default: 10)
 
-### Output
+## Tips and Notes
 
-- The tool creates a local folder called `context` and puts everything converted into `.md` files in that folder
-- The filenames have the syntax of `TYPE-PATHNAME.md` (example, `gh-ffuf_ffuf.md`)
-- Every single path in the `listfile` mode will result in a new context file
-- All images (only downloaded via webpages) are named as UUIDs and stored in the `context/images` directory (images are downloaded as a conenience, but doesn't take away from text-first context creation)
-
-### Command Line Options
-
-- CLI argument: provide a path (GitHub repo, YouTube video, WebPage link, or relative/absolute directory path) to process
-- `-f, --file`: provide a file with a list of paths (URLs or directory paths) to process
-- `-i, --ignore`: add additional patterns to ignore during processing (comma-separated)
-- `-t, --threads`: (*optional*) number of workers for concurrent file processing when passing list file (default = 10)
-
-> [!TIP]
-> - Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
-> - When processing a large number of items, it can look stalled due to thread limits and image download times; use `--debug` to enable verbose logs to know what's running.
-
-### Default Ignores
-
-The tool includes pre-defined and sensible ignore patterns, including common files and directories that typically don't add value to the context. These are:
-
-- Version control files (.git, .gitignore)
-- Dependencies (node_modules, vendor)
-- Compiled files (*.exe, *.dll)
-- Media files (images, videos, audio)
-- Lock files (package-lock.json, yarn.lock)
-- Build artifacts and caches
-
-For a full list, see `aicontext/ignores.go`.
+- For directory path (in URL or listfile mode), the path should either start with `/` (absolute) or with `./` or `../` (relative). For current directory, always use `./` for correct regex matching.
+- Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
+- The `--for-ai` flag produces plain text without ANSI colors, which is easier for AI agents to parse.
 
 ## Acknowledgments
 

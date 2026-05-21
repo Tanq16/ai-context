@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	"github.com/tanq16/ai-context/utils"
 )
 
 type TranscriptParams struct {
@@ -48,14 +46,60 @@ func ExtractVideoID(urlStr string) (string, error) {
 	return "", fmt.Errorf("could not extract video ID from URL")
 }
 
-func getTranscriptParams(videoData utils.Dictionary) (string, error) {
+type Dictionary map[string]any
+
+func (d Dictionary) UnwindString(keys ...string) string {
+	current := map[string]any(d)
+	for i, key := range keys {
+		val, ok := current[key]
+		if !ok {
+			return ""
+		}
+		if i == len(keys)-1 {
+			if strVal, isStr := val.(string); isStr {
+				return strVal
+			}
+			return ""
+		}
+		if nextMap, isMap := val.(map[string]any); isMap {
+			current = nextMap
+		} else {
+			return ""
+		}
+	}
+	return ""
+}
+
+func (d Dictionary) UnwindSlice(keys ...string) []any {
+	current := map[string]any(d)
+	for i, key := range keys {
+		val, ok := current[key]
+		if !ok {
+			return nil
+		}
+		if i == len(keys)-1 {
+			if sliceVal, isSlice := val.([]any); isSlice {
+				return sliceVal
+			}
+			return nil
+		}
+		if nextMap, isMap := val.(map[string]any); isMap {
+			current = nextMap
+		} else {
+			return nil
+		}
+	}
+	return nil
+}
+
+func getTranscriptParams(videoData Dictionary) (string, error) {
 	panels := videoData.UnwindSlice("engagementPanels")
 	if len(panels) == 0 {
 		return "", fmt.Errorf("no engagement panels found")
 	}
 	for _, panel := range panels {
 		if p, ok := panel.(map[string]any); ok {
-			panelDict := utils.Dictionary(p)
+			panelDict := Dictionary(p)
 			panelIdentifier := panelDict.UnwindString("engagementPanelSectionListRenderer", "panelIdentifier")
 			if panelIdentifier == "engagement-panel-searchable-transcript" {
 				params := panelDict.UnwindString(
@@ -75,7 +119,7 @@ func getTranscriptParams(videoData utils.Dictionary) (string, error) {
 	return "", fmt.Errorf("transcript parameters not found")
 }
 
-func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegment, error) {
+func formatTranscriptSegments(transcriptData Dictionary) ([]TranscriptSegment, error) {
 	var segments []TranscriptSegment
 	actions := transcriptData.UnwindSlice("actions")
 	if len(actions) == 0 {
@@ -84,7 +128,7 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 	if firstAction, ok := actions[0].(map[string]any); !ok {
 		return nil, fmt.Errorf("invalid action format")
 	} else {
-		actionDict := utils.Dictionary(firstAction)
+		actionDict := Dictionary(firstAction)
 		initialSegments := actionDict.UnwindSlice(
 			"updateEngagementPanelAction",
 			"content",
@@ -100,14 +144,14 @@ func formatTranscriptSegments(transcriptData utils.Dictionary) ([]TranscriptSegm
 		}
 		for _, segment := range initialSegments {
 			if segmentMap, ok := segment.(map[string]any); ok {
-				segmentDict := utils.Dictionary(segmentMap)
+				segmentDict := Dictionary(segmentMap)
 				startTime := segmentDict.UnwindString("transcriptSegmentRenderer", "startTimeText", "simpleText")
 				runs := segmentDict.UnwindSlice("transcriptSegmentRenderer", "snippet", "runs")
 				if len(runs) == 0 {
 					continue
 				}
 				if firstRun, ok := runs[0].(map[string]any); ok {
-					text := utils.Dictionary(firstRun).UnwindString("text")
+					text := Dictionary(firstRun).UnwindString("text")
 					if startTime != "" && text != "" {
 						segments = append(segments, TranscriptSegment{
 							StartTime: startTime,
@@ -129,17 +173,16 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract video ID: %v", err)
 	}
-	// Extract the API key from the page
+
 	apiKey, err := extractInnertubeKey(videoID)
 	if err != nil {
-		// Fall back to a default key if extraction fails
 		apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
 	}
-	// Create InnerTube request for video data
+
 	nextReq := InnerTubeRequest{}
 	nextReq.Context.Client.ClientName = "WEB"
 	nextReq.Context.Client.ClientVersion = "2.20240105.01.00"
-	// First request to get video data
+
 	reqBody := map[string]any{
 		"videoId": videoID,
 		"context": nextReq.Context,
@@ -148,7 +191,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video data: %v", err)
 	}
-	// Extract transcript parameters
+
 	params, err := getTranscriptParams(videoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript params: %v", err)
@@ -161,7 +204,7 @@ func DownloadTranscript(videoURL string) ([]TranscriptSegment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transcript: %v", err)
 	}
-	// Format transcript segments
+
 	segments, err := formatTranscriptSegments(transcriptData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format transcript: %v", err)
