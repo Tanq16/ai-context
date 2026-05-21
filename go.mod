@@ -4,17 +4,13 @@ go 1.25.0
 
 require (
 	charm.land/lipgloss/v2 v2.0.3
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.2.1
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/google/uuid v1.6.0
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.8.1
-	golang.org/x/net v0.31.0
 )
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/JohannesKaufmann/dom v0.1.1-0.20240706125338-ff9f3b772364 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
@@ -46,10 +42,11 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/crypto v0.29.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
