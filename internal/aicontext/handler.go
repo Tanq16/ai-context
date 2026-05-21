@@ -68,13 +68,15 @@ func cleanURL(rawURL string) (string, error) {
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(toProcess input, resultChan chan result, ignoreList []string) {
+func handlerWorker(toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64) {
 	switch toProcess.urlType {
 	case "gh":
 		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
 		codeProcessor := NewProcessor(ProcessorConfig{
-			OutputPath:        output,
-			AdditionalIgnores: ignoreList,
+			OutputPath:   output,
+			IncludeGlobs: includeGlobs,
+			ExcludeGlobs: excludeGlobs,
+			MaxSize:      maxSize,
 		})
 		utils.PrintIndentedRunning(fmt.Sprintf("%s: starting collection", toProcess.url))
 		err := codeProcessor.ProcessGitHubURL(toProcess.url)
@@ -86,8 +88,10 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 	case "dir":
 		output := path.Join("context", "dir-"+GetOutFileName(toProcess.url))
 		codeProcessor := NewProcessor(ProcessorConfig{
-			OutputPath:        output,
-			AdditionalIgnores: ignoreList,
+			OutputPath:   output,
+			IncludeGlobs: includeGlobs,
+			ExcludeGlobs: excludeGlobs,
+			MaxSize:      maxSize,
 		})
 		err := codeProcessor.ProcessDirectory(toProcess.url)
 		if err != nil {
@@ -123,7 +127,7 @@ func handlerWorker(toProcess input, resultChan chan result, ignoreList []string)
 	}
 }
 
-func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
+func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool) {
 	var cleanedUrls []string
 	for _, u := range urls {
 		cleaned, err := cleanURL(u)
@@ -205,7 +209,7 @@ func Handler(urls []string, ignoreList []string, threads int, detailLog bool) {
 			go func(toProcess input) {
 				defer workersWG.Done()
 				defer func() { <-semaphore }()
-				handlerWorker(toProcess, resultChan, ignoreList)
+				handlerWorker(toProcess, resultChan, includeGlobs, excludeGlobs, maxSize)
 				progCh <- 1
 			}(toProcess)
 		}

@@ -46,8 +46,11 @@ make build
 Generate context from a single source.
 
 ```bash
-# Process a single path (local directory) with additional ignore patterns
-ai-context /path/to/directory  -i "tests,docs,*doc.*"
+# Process a single path (local directory) with additional exclude patterns
+ai-context /path/to/directory  -e "tests,docs,*doc.*"
+
+# Only include specific file types with max size limit
+ai-context /path/to/directory -i "*.go,*.md" -s 5242880
 
 # Process one URL (GitHub repo or YouTube Video or Webpage URL)
 ai-context https://www.youtube.com/watch?v=video_id
@@ -57,7 +60,9 @@ GH_TOKEN=$(cat /secrets/GH.PAT) ai-context https://github.com/ORG/REPO
 ```
 
 **Flags:**
-- `--ignore, -i` - Additional patterns to ignore (e.g., 'tests,docs')
+- `--include, -i` - Include files matching globs (e.g., '*.go,*.md')
+- `--exclude, -e` - Exclude files matching globs (e.g., 'tests,docs')
+- `--max-size, -s` - Maximum file size in bytes to include (default 10MB)
 - `--debug` - Enable debug logging
 - `--for-ai` - AI-friendly output (plain text, piped input)
 
@@ -85,8 +90,19 @@ ai-context -f listfile
 ## Tips and Notes
 
 - For directory path (in URL or listfile mode), the path should either start with `/` (absolute) or with `./` or `../` (relative). For current directory, always use `./` for correct regex matching.
-- Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-i` flag arguments to ignore additional patterns.
+- Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-e` flag arguments to exclude additional patterns.
 - The `--for-ai` flag produces plain text without ANSI colors, which is easier for AI agents to parse.
+
+## Scenarios
+
+### The "Learn & Implement" Scenario
+`ai-context -f listfile`
+*Where `listfile` contains your local `internal/` directory and a Medium article URL explaining an architectural pattern.*
+**Use Case:** The user wants an LLM to refactor their existing `internal/` packages using a specific pattern described in a Medium article. AI-Context will output markdown of both the codebase and the article content, ready to pipe to your LLM prompt.
+
+### The "Bug Hunt" Scenario
+`ai-context https://github.com/org/repo -i "pkg/math/*.go"`
+**Use Case:** Pulls down only the specific logic paths from a GitHub repository to save token limits when asking an LLM to find a bug.
 
 ## Acknowledgments
 
