@@ -68,7 +68,7 @@ func cleanURL(rawURL string) (string, error) {
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64) {
+func handlerWorker(toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64, offline bool) {
 	switch toProcess.urlType {
 	case "gh":
 		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
@@ -118,7 +118,7 @@ func handlerWorker(toProcess input, resultChan chan result, includeGlobs []strin
 		resultChan <- result{url: toProcess.url, err: nil}
 	case "generic":
 		output := path.Join("context", "web-"+GetOutFileName(toProcess.url))
-		err := ProcessWebContent(toProcess.url, output)
+		err := ProcessWebContent(toProcess.url, output, offline)
 		if err != nil {
 			resultChan <- result{url: toProcess.url, err: err}
 			return
@@ -127,7 +127,7 @@ func handlerWorker(toProcess input, resultChan chan result, includeGlobs []strin
 	}
 }
 
-func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool) {
+func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool, offline bool) {
 	var cleanedUrls []string
 	for _, u := range urls {
 		cleaned, err := cleanURL(u)
@@ -209,7 +209,7 @@ func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSiz
 			go func(toProcess input) {
 				defer workersWG.Done()
 				defer func() { <-semaphore }()
-				handlerWorker(toProcess, resultChan, includeGlobs, excludeGlobs, maxSize)
+				handlerWorker(toProcess, resultChan, includeGlobs, excludeGlobs, maxSize, offline)
 				progCh <- 1
 			}(toProcess)
 		}
