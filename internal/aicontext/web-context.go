@@ -42,102 +42,57 @@ func makeWebRequest(urlStr string) (*http.Response, error) {
 	return resp, nil
 }
 
-func fetchJina(urlStr string) (string, error) {
-	jinaURL := "https://r.jina.ai/" + urlStr
-	resp, err := makeWebRequest(jinaURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch URL from jina: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("jina returned status: %d", resp.StatusCode)
-	}
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-	return string(content), nil
-}
+func ProcessWebContent(urlStr, outputPath string, useJina bool) error {
+	if useJina {
+		jinaURL := "https://r.jina.ai/" + urlStr
+		resp, err := makeWebRequest(jinaURL)
+		if err != nil {
+			return fmt.Errorf("failed to fetch URL from jina: %w", err)
+		}
+		defer resp.Body.Close()
+		content, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
 
-func fetchLocal(urlStr string) (string, error) {
+		final := fmt.Sprintf("# Webpage Context\n\nSource: %s\n\n%s", urlStr, string(content))
+		err = os.WriteFile(outputPath, []byte(final), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write output file: %w", err)
+		}
+		return nil
+	}
+
 	baseURL, err := url.Parse(urlStr)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse URL: %w", err)
+		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 	resp, err := makeWebRequest(urlStr)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch URL: %w", err)
+		return fmt.Errorf("failed to fetch URL: %w", err)
 	}
 	defer resp.Body.Close()
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	doc, err := html.Parse(strings.NewReader(string(content)))
 	if err != nil {
-		return "", fmt.Errorf("failed to parse HTML: %w", err)
+		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
 	cleanHTML(doc)
 	_ = processImages(doc, baseURL)
 	markdown, err := htmltomarkdown.ConvertString(renderNode(doc))
 	if err != nil {
-		return "", fmt.Errorf("failed to convert to markdown: %w", err)
+		return fmt.Errorf("failed to convert to markdown: %w", err)
 	}
 	title := findTitle(doc)
 	if title == "" {
 		title = baseURL.Host
 	}
 	final := fmt.Sprintf("# Webpage Context: %s\n\nSource: %s\n\n%s", title, urlStr, markdown)
-	return final, nil
-}
-
-func ProcessWebContent(urlStr, outputPath string, offline bool) error {
-	var finalContent string
-
-	if offline {
-		res, err := fetchLocal(urlStr)
-		if err != nil {
-			return err
-		}
-		finalContent = res
-	} else {
-		// Run both concurrently
-		type fetchResult struct {
-			content string
-			err     error
-		}
-		jinaChan := make(chan fetchResult, 1)
-		localChan := make(chan fetchResult, 1)
-
-		go func() {
-			res, err := fetchJina(urlStr)
-			jinaChan <- fetchResult{content: res, err: err}
-		}()
-
-		go func() {
-			res, err := fetchLocal(urlStr)
-			localChan <- fetchResult{content: res, err: err}
-		}()
-
-		// Wait for jina first, if it succeeds, use it
-		jinaRes := <-jinaChan
-		if jinaRes.err == nil && jinaRes.content != "" {
-			// Format jina output
-			finalContent = fmt.Sprintf("# Webpage Context\n\nSource: %s\n\n%s", urlStr, jinaRes.content)
-			// still wait for local so it doesn't leak or log error (it will just return to localChan)
-			go func() { <-localChan }()
-		} else {
-			// Jina failed, fallback to local
-			localRes := <-localChan
-			if localRes.err != nil {
-				return fmt.Errorf("both jina and local fetch failed. local err: %w", localRes.err)
-			}
-			finalContent = localRes.content
-		}
-	}
-
-	err := os.WriteFile(outputPath, []byte(finalContent), 0644)
+	err = os.WriteFile(outputPath, []byte(final), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}

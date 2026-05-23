@@ -21,7 +21,6 @@ var cmdFlags struct {
 	includeGlobs []string
 	excludeGlobs []string
 	maxSize      int64
-	offline      bool
 }
 
 var AppVersion = "dev-build"
@@ -65,7 +64,7 @@ var rootCmd = &cobra.Command{
 				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, cmdFlags.offline)
+		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, false)
 	},
 }
 
@@ -108,5 +107,4 @@ func init() {
 	rootCmd.Flags().StringSliceVarP(&cmdFlags.includeGlobs, "include", "i", []string{}, "Include files matching globs (e.g., '*.go,*.md')")
 	rootCmd.Flags().StringSliceVarP(&cmdFlags.excludeGlobs, "exclude", "e", []string{}, "Exclude files matching globs (e.g., 'tests,docs')")
 	rootCmd.Flags().Int64VarP(&cmdFlags.maxSize, "max-size", "s", 10485760, "Maximum file size in bytes to include (default 10MB)")
-	rootCmd.Flags().BoolVarP(&cmdFlags.offline, "offline", "o", false, "Disable online fetching (e.g., r.jina.ai)")
 }
