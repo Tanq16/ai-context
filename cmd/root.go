@@ -64,7 +64,7 @@ var rootCmd = &cobra.Command{
 				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false)
+		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, false)
 	},
 }
 
