@@ -16,6 +16,8 @@ Generate AI-friendly markdown files from GitHub repos, local code, YouTube video
 |----------|----------|-------------|
 | Processing | `ai-context [url/path]` | Process local directories, GitHub repos, YouTube videos, or webpages |
 | Batch | `ai-context -f [file]` | Process multiple sources concurrently from a list file |
+| Jina Scraper | `ai-context jina-scraper [url]` | Use Jina.ai to reliably fetch and convert web pages to markdown |
+| Stats | `ai-context stats [file]` | View lines, words, chars, and estimated LLM tokens for a file |
 
 ## Installation
 
@@ -87,22 +89,35 @@ ai-context -f listfile
 - `--file, -f` - File with list of URLs to process
 - `--threads, -t` - Number of threads to use for processing (default: 10)
 
+### Jina Scraper
+
+Use Jina.ai to reliably extract markdown from complex web pages
+
+```bash
+# Process a web page via Jina
+ai-context jina-scraper https://example.com/docs
+
+# You can also use list files just like the main command
+ai-context jina-scraper -f listfile
+```
+
+*Note: This command supports the exact same flags as the main processing command (`--include`, `--exclude`, `--max-size`, etc.).*
+
+### File Stats & Token Estimation
+
+Analyze any generated context file (or any local file) to see its lines, words, characters, size, and an estimated LLM token count. The token heuristic is mathematically tuned for BPE tokenizers (like GPT-4 and Claude) and is highly accurate for both prose and code.
+
+```bash
+ai-context stats context/example.md
+```
+
 ## Tips and Notes
 
 - For directory path (in URL or listfile mode), the path should either start with `/` (absolute) or with `./` or `../` (relative). For current directory, always use `./` for correct regex matching.
 - Do a `head -n 200 context/FILE.md` (or 500 lines) to view the content tree of the processed code base or directory to see what's been included. Then refine your `-e` flag arguments to exclude additional patterns.
 - The `--for-ai` flag produces plain text without ANSI colors, which is easier for AI agents to parse.
 
-## Scenarios
 
-### The "Learn & Implement" Scenario
-`ai-context -f listfile`
-*Where `listfile` contains your local `internal/` directory and a Medium article URL explaining an architectural pattern.*
-**Use Case:** The user wants an LLM to refactor their existing `internal/` packages using a specific pattern described in a Medium article. AI-Context will output markdown of both the codebase and the article content, ready to pipe to your LLM prompt.
-
-### The "Bug Hunt" Scenario
-`ai-context https://github.com/org/repo -i "pkg/math/*.go"`
-**Use Case:** Pulls down only the specific logic paths from a GitHub repository to save token limits when asking an LLM to find a bug.
 
 ## Acknowledgments
 
