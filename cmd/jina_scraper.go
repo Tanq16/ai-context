@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -53,7 +56,10 @@ var jinaCmd = &cobra.Command{
 				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, jinaCmdFlags.includeGlobs, jinaCmdFlags.excludeGlobs, jinaCmdFlags.maxSize, jinaCmdFlags.threads, false, true)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		aicontext.Handler(ctx, urls, jinaCmdFlags.includeGlobs, jinaCmdFlags.excludeGlobs, jinaCmdFlags.maxSize, jinaCmdFlags.threads, false, true)
 	},
 }
 

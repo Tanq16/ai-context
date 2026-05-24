@@ -1,6 +1,7 @@
 package aicontext
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -8,8 +9,10 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 	"sync/atomic"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/tanq16/ai-context/utils"
 )
@@ -68,7 +71,14 @@ func cleanURL(rawURL string) (string, error) {
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64, useJina bool) {
+func handlerWorker(ctx context.Context, toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64, useJina bool) {
+	select {
+	case <-ctx.Done():
+		resultChan <- result{url: toProcess.url, err: ctx.Err()}
+		return
+	default:
+	}
+
 	switch toProcess.urlType {
 	case "gh":
 		output := path.Join("context", "gh-"+GetOutFileName(toProcess.url))
@@ -127,7 +137,7 @@ func handlerWorker(toProcess input, resultChan chan result, includeGlobs []strin
 	}
 }
 
-func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool, useJina bool) {
+func Handler(ctx context.Context, urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool, useJina bool) {
 	var cleanedUrls []string
 	for _, u := range urls {
 		cleaned, err := cleanURL(u)
@@ -150,6 +160,10 @@ func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSiz
 	}
 	utils.ClearLines(1)
 	totUrls := len(urls)
+	if totUrls == 0 {
+		utils.PrintSuccess("Completed all operations successfully")
+		return
+	}
 	pluralS := "s"
 	if totUrls == 1 {
 		pluralS = ""
@@ -157,31 +171,32 @@ func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSiz
 
 	utils.PrintRunning(fmt.Sprintf("Gathering %d context file%s", totUrls, pluralS))
 
-	inputURLChan := make(chan input)
-	resultChan := make(chan result)
-	progressChan := make(chan int64)
-	var outerWG sync.WaitGroup
-
-	done := make(chan struct{})
+	progressChan := make(chan int64, totUrls)
 	var printed atomic.Bool
-	var reporterWG sync.WaitGroup
-	reporterWG.Add(1)
-	go func(totUrls int64) {
-		defer reporterWG.Done()
+	
+	reporterDone := make(chan struct{})
+	go func() {
+		defer close(reporterDone)
 		totCompleted := int64(0)
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 		firstTick := true
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case completed, ok := <-progressChan:
 				if !ok {
-					progressChan = nil
-				} else {
-					totCompleted += completed
+					return
 				}
+				totCompleted += completed
+				if !firstTick {
+					utils.ClearPreviousLine()
+				}
+				firstTick = false
+				printed.Store(true)
+				pct := int(float64(totCompleted) / float64(totUrls) * 100)
+				utils.PrintProgress(fmt.Sprintf("%d/%d finished", totCompleted, totUrls), pct)
 			case <-ticker.C:
 				if !firstTick {
 					utils.ClearPreviousLine()
@@ -192,70 +207,69 @@ func Handler(urls []string, includeGlobs []string, excludeGlobs []string, maxSiz
 				utils.PrintProgress(fmt.Sprintf("%d/%d finished", totCompleted, totUrls), pct)
 			}
 		}
-	}(int64(totUrls))
-
-	var workersWG sync.WaitGroup
-	outerWG.Add(1)
-	go func(progCh chan<- int64) {
-		semaphore := make(chan struct{}, threads)
-		defer outerWG.Done()
-		defer close(resultChan)
-		defer close(progressChan)
-		defer close(semaphore)
-		defer workersWG.Wait()
-		for toProcess := range inputURLChan {
-			workersWG.Add(1)
-			semaphore <- struct{}{}
-			go func(toProcess input) {
-				defer workersWG.Done()
-				defer func() { <-semaphore }()
-				handlerWorker(toProcess, resultChan, includeGlobs, excludeGlobs, maxSize, useJina)
-				progCh <- 1
-			}(toProcess)
-		}
-	}(progressChan)
-
-	var collectorWG sync.WaitGroup
-	collectorWG.Add(1)
-	errors := make([]error, 0)
-	go func() {
-		defer collectorWG.Done()
-		for result := range resultChan {
-			if result.err != nil {
-				errors = append(errors, fmt.Errorf("failed to process %s: %v", result.url, result.err))
-			}
-		}
 	}()
 
-	outerWG.Add(1)
-	go func(urls []string) {
-		defer outerWG.Done()
-		defer close(inputURLChan)
-		for _, u := range urls {
-			matched := false
-			for ut, reg := range URLRegex {
-				if isMatch, _ := regexp.MatchString(reg, u); isMatch {
-					if ut == "yt" || ut == "yt1" || ut == "yt2" {
-						inputURLChan <- input{url: u, urlType: "yt"}
-					} else {
-						inputURLChan <- input{url: u, urlType: ut}
-					}
-					matched = true
-					break
+	g, groupCtx := errgroup.WithContext(ctx)
+	g.SetLimit(threads)
+
+	var errorsMu sync.Mutex
+	var errors []error
+
+	for _, u := range urls {
+		matched := false
+		var toProcess input
+		for ut, reg := range URLRegex {
+			if isMatch, _ := regexp.MatchString(reg, u); isMatch {
+				if ut == "yt" || ut == "yt1" || ut == "yt2" {
+					toProcess = input{url: u, urlType: "yt"}
+				} else {
+					toProcess = input{url: u, urlType: ut}
 				}
-			}
-			if !matched && strings.HasPrefix(u, "http") {
-				inputURLChan <- input{url: u, urlType: "generic"}
 				matched = true
+				break
 			}
 		}
-	}(urls)
+		if !matched && strings.HasPrefix(u, "http") {
+			toProcess = input{url: u, urlType: "generic"}
+			matched = true
+		}
 
-	outerWG.Wait()
-	collectorWG.Wait()
+		if !matched {
+			continue
+		}
 
-	close(done)
-	reporterWG.Wait()
+		g.Go(func() error {
+			select {
+			case <-groupCtx.Done():
+				return groupCtx.Err()
+			default:
+			}
+
+			resultChan := make(chan result, 1)
+			handlerWorker(groupCtx, toProcess, resultChan, includeGlobs, excludeGlobs, maxSize, useJina)
+			
+			res := <-resultChan
+			if res.err != nil {
+				errorsMu.Lock()
+				errors = append(errors, fmt.Errorf("failed to process %s: %v", res.url, res.err))
+				errorsMu.Unlock()
+			}
+			
+			select {
+			case <-groupCtx.Done():
+				return groupCtx.Err()
+			case progressChan <- 1:
+			}
+
+			return nil
+		})
+	}
+
+	_ = g.Wait()
+
+	close(progressChan)
+	<-reporterDone
+
 	if printed.Load() {
 		utils.ClearPreviousLine()
 	}

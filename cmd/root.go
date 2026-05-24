@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"bufio"
+	"context"
+	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,12 +68,16 @@ var rootCmd = &cobra.Command{
 				utils.PrintFatal("failed to read list file", scanner.Err())
 			}
 		}
-		aicontext.Handler(urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, false)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		aicontext.Handler(ctx, urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, false)
 	},
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -81,10 +89,10 @@ func setupLogs() {
 		TimeFormat: time.DateTime,
 		NoColor:    false,
 	}
+	log.Logger = zerolog.New(output).With().Timestamp().Logger()
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if debugFlag {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		log.Logger = zerolog.New(output).With().Timestamp().Logger()
 		utils.GlobalDebugFlag = true
 	}
 	if forAIFlag {
