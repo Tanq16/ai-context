@@ -8,15 +8,14 @@
 
 ---
 
-Generate AI-friendly markdown files from GitHub repos, local code, YouTube videos, or webpages using a multi-arch, multi-OS CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy.
+Generate AI-friendly markdown files from local code or GitHub repos using a multi-arch, multi-OS Go CLI tool to make your interactions with LLMs (like ChatGPT, Claude, etc.) easy.
 
 ## Capabilities
 
 | Category | Commands | Description |
 |----------|----------|-------------|
-| Processing | `ai-context [url/path]` | Process local directories, GitHub repos, YouTube videos, or webpages |
-| Batch | `ai-context -f [file]` | Process multiple sources concurrently from a list file |
-| Jina Scraper | `ai-context jina-scraper [url]` | Use Jina.ai to reliably fetch and convert web pages to markdown |
+| Processing | `ai-context [url/path]` | Process local directories or GitHub repositories |
+| Batch | `ai-context -f [file]` | Process multiple directories/repositories concurrently from a list file |
 | Stats | `ai-context stats [file]` | View lines, words, chars, and estimated LLM tokens for a file |
 
 ## Installation
@@ -54,8 +53,8 @@ ai-context /path/to/directory  -e "tests,docs,*doc.*"
 # Only include specific file types with max size limit
 ai-context /path/to/directory -i "*.go,*.md" -s 5242880
 
-# Process one URL (GitHub repo or YouTube Video or Webpage URL)
-ai-context https://www.youtube.com/watch?v=video_id
+# Process a public GitHub repository
+ai-context https://github.com/tanq16/ai-context
 
 # Process private GitHub repository
 GH_TOKEN=$(cat /secrets/GH.PAT) ai-context https://github.com/ORG/REPO
@@ -89,19 +88,7 @@ ai-context -f listfile
 - `--file, -f` - File with list of URLs to process
 - `--threads, -t` - Number of threads to use for processing (default: 10)
 
-### Jina Scraper
 
-Use Jina.ai to reliably extract markdown from complex web pages
-
-```bash
-# Process a web page via Jina
-ai-context jina-scraper https://example.com/docs
-
-# You can also use list files just like the main command
-ai-context jina-scraper -f listfile
-```
-
-*Note: This command supports the exact same flags as the main processing command (`--include`, `--exclude`, `--max-size`, etc.).*
 
 ### File Stats & Token Estimation
 

@@ -19,10 +19,7 @@ import (
 
 var URLRegex = map[string]string{
 	"gh":  "https://github.com/.+",
-	"yt":  "https://youtu.be/.+",
-	"yt1": "https://www.youtube.com/watch\\?v=.+",
-	"yt2": "https://youtube.com/watch\\?v=.+",
-	"dir": "^\\.?\\./.+|^/.*",
+	"dir": "^\\.?\\./.*|^/.*",
 }
 
 type result struct {
@@ -55,23 +52,15 @@ func cleanURL(rawURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %w", err)
 	}
-	if strings.Contains(parsedURL.Host, "youtube.com") {
-		videoID := parsedURL.Query().Get("v")
-		if videoID != "" {
-			query := url.Values{}
-			query.Set("v", videoID)
-			parsedURL.RawQuery = query.Encode()
-		} else {
-			parsedURL.RawQuery = ""
-		}
-	} else {
-		parsedURL.RawQuery = ""
+	if !strings.Contains(parsedURL.Host, "github.com") {
+		return "", fmt.Errorf("only GitHub repositories and local directories are supported")
 	}
+	parsedURL.RawQuery = ""
 	parsedURL.Fragment = ""
 	return parsedURL.String(), nil
 }
 
-func handlerWorker(ctx context.Context, toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64, useJina bool) {
+func handlerWorker(ctx context.Context, toProcess input, resultChan chan result, includeGlobs []string, excludeGlobs []string, maxSize int64) {
 	select {
 	case <-ctx.Done():
 		resultChan <- result{url: toProcess.url, err: ctx.Err()}
@@ -109,35 +98,10 @@ func handlerWorker(ctx context.Context, toProcess input, resultChan chan result,
 			return
 		}
 		resultChan <- result{url: toProcess.url, err: nil}
-	case "yt":
-		segments, err := DownloadTranscript(toProcess.url)
-		output := path.Join("context", "yt-"+GetOutFileName(toProcess.url))
-		if err != nil {
-			resultChan <- result{url: toProcess.url, err: err}
-			return
-		}
-		var content strings.Builder
-		content.WriteString("# Video Transcript\n\n")
-		for _, segment := range segments {
-			content.WriteString(fmt.Sprintf("[%s] %s\n\n", segment.StartTime, segment.Text))
-		}
-		if err := os.WriteFile(output, []byte(content.String()), 0644); err != nil {
-			resultChan <- result{url: toProcess.url, err: err}
-			return
-		}
-		resultChan <- result{url: toProcess.url, err: nil}
-	case "generic":
-		output := path.Join("context", "web-"+GetOutFileName(toProcess.url))
-		err := ProcessWebContent(toProcess.url, output, useJina)
-		if err != nil {
-			resultChan <- result{url: toProcess.url, err: err}
-			return
-		}
-		resultChan <- result{url: toProcess.url, err: nil}
 	}
 }
 
-func Handler(ctx context.Context, urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool, useJina bool) {
+func Handler(ctx context.Context, urls []string, includeGlobs []string, excludeGlobs []string, maxSize int64, threads int, detailLog bool) {
 	var cleanedUrls []string
 	for _, u := range urls {
 		cleaned, err := cleanURL(u)
@@ -220,18 +184,10 @@ func Handler(ctx context.Context, urls []string, includeGlobs []string, excludeG
 		var toProcess input
 		for ut, reg := range URLRegex {
 			if isMatch, _ := regexp.MatchString(reg, u); isMatch {
-				if ut == "yt" || ut == "yt1" || ut == "yt2" {
-					toProcess = input{url: u, urlType: "yt"}
-				} else {
-					toProcess = input{url: u, urlType: ut}
-				}
+				toProcess = input{url: u, urlType: ut}
 				matched = true
 				break
 			}
-		}
-		if !matched && strings.HasPrefix(u, "http") {
-			toProcess = input{url: u, urlType: "generic"}
-			matched = true
 		}
 
 		if !matched {
@@ -246,7 +202,7 @@ func Handler(ctx context.Context, urls []string, includeGlobs []string, excludeG
 			}
 
 			resultChan := make(chan result, 1)
-			handlerWorker(groupCtx, toProcess, resultChan, includeGlobs, excludeGlobs, maxSize, useJina)
+			handlerWorker(groupCtx, toProcess, resultChan, includeGlobs, excludeGlobs, maxSize)
 			
 			res := <-resultChan
 			if res.err != nil {

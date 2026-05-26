@@ -71,7 +71,7 @@ var rootCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
-		aicontext.Handler(ctx, urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false, false)
+		aicontext.Handler(ctx, urls, cmdFlags.includeGlobs, cmdFlags.excludeGlobs, cmdFlags.maxSize, cmdFlags.threads, false)
 	},
 }
 
