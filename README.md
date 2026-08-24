@@ -1,3 +1,5 @@
+> **Archiving this.** Most features are now built into AI agents, and remaining cases are covered by tools like [repomix](https://github.com/yamadashy/repomix) and [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+
 <div align="center">
   <img src=".github/assets/logo.png" alt="AI Context Logo" width="200">
   <h1>AI Context</h1>
